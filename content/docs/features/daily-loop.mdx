@@ -7,8 +7,9 @@ Checkpoint **CP4** — the single most important slice · App: `features/trainin
 (client shell **Train** tab) · Backend migration: `logging` (**CP-B4**).
 
 <Callout type="info">
-**Status:** Backend (CP-B4) is **done & verified**. The app UI is **in progress**
-— this page is updated as the Train tab lands.
+**Status:** Backend (CP-B4) **done & verified**; the app Train tab is **built**
+(`flutter analyze` clean). A device run against the real backend is the remaining
+sign-off step.
 </Callout>
 
 ## The flow
@@ -77,13 +78,23 @@ completion, swap history, cross-person/cross-tenant denial, and staff on-behalf
 logging all pass.
 </Callout>
 
-## App (in progress)
+## App (`features/training`)
 
-- Assignment-instance models (read the `assignment_*` tables).
-- `TrainingRepository`: `loadActiveAssignment`, `lastEntriesFor(exerciseId)`,
-  `logSet`, `completeSession`, `swapExercise`.
-- Providers: `assignedProgramProvider(personId)`, `sessionProvider(sessionId)`,
-  `lastEntryProvider(personId, exerciseId)`, plus transient logging state.
-- Train tab: session menu (last-completed badge) → session runner (target · video
-  · **LAST TIME** · log inputs · swap · Mark complete). Gym-friendly: big numeric
-  steppers, numeric keyboards, minimal taps, last-time values prefilled.
+- **Models** (`data/models/active_assignment.dart`) — `ActiveAssignment` →
+  `TrainingAssignmentSession` → `TrainingExercise` (snapshot target + name/video),
+  and `LoggedEntry`. All read the `assignment_*` / `logged_entries` rows.
+- **`TrainingRepository`** — `loadActiveAssignment`, `lastEntriesFor(exerciseId)`
+  (groups the most-recent logging occasion), `logSet` (client logs own,
+  `logged_by = self`), `completeSession`, `swapExercise` (last two via the RPCs).
+- **Providers** — `activeAssignmentProvider` (the signed-in client's instance),
+  `lastEntriesProvider(exerciseId)` (family). Invalidated after complete/swap.
+- **Train tab** (`TrainScreen`) — the program name + session menu; each session
+  card shows its exercise count and a **Completed** badge (from `last_completed_at`);
+  pull-to-refresh; empty/offline states.
+- **Session runner** (`SessionRunnerScreen`) — per exercise: name + **swap**,
+  the **Target**, set-type & coach notes, **Watch video** (`url_launcher`), a
+  **LAST TIME** block, today's logged sets, and numeric inputs (reps · weight ·
+  time) with a **Log set** / **Add set** button. Last-time values prefill the
+  inputs (minimal taps); numeric keyboards; a **Mark complete** FAB with a
+  heavy-haptic success. Swap opens the library picker and re-points the snapshot
+  via the RPC.
