@@ -1,0 +1,45 @@
+---
+title: Assignments
+description: Assigning a template snapshots it into a per-client instance — a copy, not a reference. (CP3)
+---
+
+Checkpoint **CP3** · App: `features/clients` (assign flow) · Backend migration:
+`assignments_clients`.
+
+Assigning a template to a client creates an **editable copy bound to that
+client** — an **instance, not a reference**. Editing the instance **never**
+touches the template or another client's copy. This is the model rule that keeps
+per-client tweaks and ["last time"](/docs/features/daily-loop) history clean.
+
+## Data
+
+Tables: `assignments` → `assignment_sessions` → `assignment_exercises`.
+
+- **`assignments`** — the instance root: `person_id` (the client),
+  `source_program_id` (nullable link back), `name`, `assigned_by`, `is_active`.
+- **`assignment_sessions`** — `label`, `order_index`, and **`last_completed_at`**
+  (stamped by the daily loop).
+- **`assignment_exercises`** — the **snapshot prescription**. It copies
+  `exercise_name` + `video_url` so the client loop reads only assignment rows (no
+  cross-table client RLS needed), while keeping `exercise_id` for per-exercise
+  "last time". Also carries `swapped_from_exercise_id` for swap history and the
+  full prescription fields.
+
+## `assign_template(program, person, name?)` — RPC
+
+`SECURITY DEFINER`. Authorises staff-in-tenant, then atomically snapshots the
+template's sessions + prescriptions into the `assignment_*` rows. Copies
+`exercises.name` / `video_url` into the snapshot at assign time.
+
+## RLS
+
+The client sees **their own** assignment rows; staff manage the tenant's.
+`assignment_sessions` / `assignment_exercises` are readable via their parent
+assignment's `person_id` (client) or staff; **writes are staff-only** — which is
+why the daily loop's complete/swap go through
+[definer RPCs](/docs/features/daily-loop#rpcs).
+
+## App
+
+From a client record: **Assign** → template picker → confirm. Creates the
+instance via `assign_template()`.

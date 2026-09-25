@@ -1,0 +1,49 @@
+---
+title: Program Builder
+description: Programs are menus of ordered sessions with per-exercise prescriptions. (CP2)
+---
+
+Checkpoint **CP2** · App: `features/programs` · Backend migration: `program_builder`.
+
+A **program** is an ordered set of **sessions** (A1, A2, B1…). **No calendar, no
+scheduled dates** — sessions are a menu the client picks from. A **session** is
+an ordered list of exercises, each with a **prescription** set at build time.
+Programs are saved as reusable **templates**.
+
+## Data
+
+Tables: `programs`, `sessions`, `session_exercises`. All carry `tenant_id` and an
+`owner_id`/program owner; ordering is via `order_index`.
+
+**`session_exercises`** holds the prescription per exercise:
+
+| Field | |
+| --- | --- |
+| `sets` | int |
+| `reps` | text (e.g. `8-10`, `AMRAP`) |
+| `weight` | text |
+| `load_intensity` | text |
+| `rpe` | text |
+| `time_seconds` | int |
+| `tempo` | text |
+| `rest_seconds` | int |
+| `set_type_note` | free-text (superset, dropset, EMOM… in v1) |
+| `coach_note` | free-text |
+
+<Callout>
+Set **types** (superset, dropset, AMRAP, EMOM…) are **free-text** instructions in
+v1, not structured objects.
+</Callout>
+
+## RLS
+
+`owns_program()` gates writes; tenant isolation first. See
+[Security & RLS](/docs/backend/security-and-rls).
+
+## App
+
+- `ProgramRepository` + provider; program list.
+- Program editor: add sessions (add / rename / reorder).
+- Session editor: add exercise via the [library](/docs/features/exercise-library)
+  picker → prescription sheet; edit / remove / reorder. Reorder = `order_index`
+  updates. Reached from a **Programs** action in the Library tab.

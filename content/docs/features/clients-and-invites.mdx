@@ -1,0 +1,45 @@
+---
+title: Clients & Invites
+description: The account-less client record, safety flags, and account-binding invites. (CP3)
+---
+
+Checkpoint **CP3** · App: `features/clients` · Backend migration:
+`assignments_clients` (health_flags, invites).
+
+## The account-less client
+
+The domain identity is a **`person`** (see [Data model](/docs/backend/data-model)).
+A person may or may not link to an `auth.users` account: **a client record is not
+a user account**. Elderly / 1-on-1 PT clients never open the app — staff operate
+their profile, program, and history on their behalf.
+
+## Safety flags — special-category data
+
+**`health_flags`** stores coach-side safety screening (smoking, blood pressure,
+vertigo, migraines, medications, allergies, asthma, osteoporosis, joint pain,
+spine condition, other).
+
+<Callout type="warn">
+`health_flags` is **special-category personal data (GDPR)**. The person can read
+their own; staff read + write the tenant's. It is never exposed cross-tenant.
+</Callout>
+
+## Invites → binding an account to a person
+
+Onboarding: staff add the client → send an **invite** → client downloads the app,
+signs up, and their **new account binds to the pre-existing person row**.
+
+**`invites`**: `code` (unique), `person_id`, `status` (`pending` / `accepted` /
+`expired`), `expires_at`.
+
+### `redeem_invite(code)` — RPC
+
+`SECURITY DEFINER` (a freshly signed-up user has no person/tenant yet). It looks
+up a pending, unexpired invite, sets `persons.auth_user_id = auth.uid()` on the
+target person **only if still unlinked**, and marks the invite `accepted`.
+
+## App
+
+Clients tab: list, add account-less client, detail (safety flags, assignments,
+**Assign** via template picker, **Invite** → code). Invite redemption runs on the
+client's finish-setup step.

@@ -1,0 +1,60 @@
+---
+title: Data Model
+description: The tenant-scoped Postgres schema — persons, the training engine, and generic logging.
+---
+
+Supabase Postgres. **Every** domain row carries `tenant_id` and a
+`gen_random_uuid()` pk; most carry `created_at` / `updated_at` (trigger-maintained
+via `set_updated_at()`).
+
+## Design rules
+
+- **Multi-tenant from day one.** One `tenants` row per gym; `tenant_id` on every
+  domain table; composite indexes lead with `tenant_id`. Lynx Center is tenant #1
+  (seeded, fixed UUID `…0001`).
+- **`person` is the spine**, decoupled from `auth.users`. Training/CRM data
+  references `person_id`, never `auth.uid()` directly. A person belongs to exactly
+  one tenant (a human at two gyms = two person rows).
+- **Instances, not references** — assigning a template snapshots it into
+  per-client `assignment_*` rows. See [Assignments](/docs/features/assignments).
+- **Generic logging** — one flexible `logged_entries` shape holds today's
+  set/rep/weight/time and tomorrow's physio measures.
+
+## Core tables (v1, as built)
+
+| Table | Purpose |
+| --- | --- |
+| `tenants` | one row per gym/studio |
+| `persons` | the client/staff record (may be account-less) |
+| `person_roles` | `owner` / `coach` / `physio` / `client` (a person may hold several) |
+| `exercises`, `tags`, `exercise_tags` | [coach-owned library](/docs/features/exercise-library) |
+| `programs`, `sessions`, `session_exercises` | [template side](/docs/features/program-builder) |
+| `assignments`, `assignment_sessions`, `assignment_exercises` | [per-client instance](/docs/features/assignments) |
+| `logged_entries` | [generic actuals history](/docs/features/daily-loop) — powers "last time" |
+| `health_flags` | coach-side safety screening (special-category) |
+| `invites` | account-binding on client signup |
+
+<Callout>
+Groups / rosters (`groups`, `group_members`) and the v1.x CRM/physio stubs
+(`leads`, `entitlements`, `clinical_notes`, …) are designed in the backend
+`docs/00-data-model.md` and land at later checkpoints — not covered here until built.
+</Callout>
+
+## Relationships
+
+- `tenants` → owns `persons`, `exercises`, `programs` (and everything else).
+- `auth.users` ⇢ optionally links to one `persons` row (`auth_user_id`, null =
+  account-less).
+- `persons` → `person_roles`, `health_flags`, `assignments`, `logged_entries`,
+  `invites`.
+- `exercises` → used in `session_exercises`, tagged via `exercise_tags`.
+- `programs` → `sessions` → `session_exercises` (the template).
+- `assignments` → `assignment_sessions` → `assignment_exercises` (the snapshot);
+  `assignment_exercises` are logged against by `logged_entries`.
+
+## "Last time"
+
+The load-bearing query for the hero: most recent `logged_entries` for a
+`(person_id, exercise_id)` ordered by `logged_at desc`, served by the
+`logged_entries_last_time_idx` index. `exercise_id` is preserved on the snapshot
+(and across swaps) so history follows the movement across programs.

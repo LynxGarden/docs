@@ -1,0 +1,48 @@
+---
+title: Navigation & Shells
+description: The go_router setup, the auth redirect gate, and the role-resolved client/staff shells.
+---
+
+Navigation is **go_router** with an auth-driven redirect. Routing is deliberately
+flat: auth routes, one `/app` entry that resolves the shell, and `/settings`.
+
+## Routes
+
+| Path | Screen |
+| --- | --- |
+| `/splash` | resolves to login or `/app` |
+| `/login`, `/signup`, `/forgot-password`, `/check-email`, `/verification-successful` | auth flow (public) |
+| `/auth/reset-password` | password-reset deep-link landing (`ChangePasswordScreen`) |
+| `/app` | **`RootShell`** — resolves role/tenant, shows the right shell |
+| `/settings` → `/settings/change-password` | settings |
+
+## The redirect gate
+
+`refreshListenable` is an auth-state notifier, so go_router re-evaluates on every
+auth change:
+
+- Password recovery takes precedence — the user is pinned to
+  `/auth/reset-password` until they set a new password.
+- Unauthenticated + non-public route → `/login`.
+- Authenticated + on a public auth route → `/splash` to resolve.
+
+## RootShell: role → shell
+
+`/app` renders `RootShell`, which resolves the signed-in user's linked person /
+tenant / role and shows one of:
+
+- **Finish-setup** — authenticated but **not yet linked** to a person (e.g. a fresh
+  signup redeeming an [invite](/docs/features/clients-and-invites)). Until linked,
+  RLS returns nothing.
+- **Client shell** — Train · Progress/history · Profile.
+- **Staff shell** — Clients · Library (Exercises + Programs) · Review · Groups ·
+  Profile.
+
+Tabs live **inside** each shell (adaptive native Cupertino tab bar / Material
+pill), not as separate go_router paths. The client [daily loop](/docs/features/daily-loop)
+is the Train tab.
+
+<Callout>
+Deep links are declared in `core/config/deeplink_config.dart`; the reset-password
+callback is the one wired in v1.
+</Callout>

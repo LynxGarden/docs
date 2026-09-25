@@ -1,0 +1,78 @@
+---
+title: Security & RLS
+description: Tenant isolation, the helper functions every policy builds on, and the SECURITY DEFINER RPCs.
+---
+
+Postgres RLS is the backstop — the app respects it but correctness does not depend
+on the app. RLS is where the **account-less client** model and **health-data**
+obligations get enforced.
+
+## Helper functions
+
+Resolved from the `person` linked to `auth.uid()` (all `stable security definer`):
+
+| Function | Returns |
+| --- | --- |
+| `current_person_id()` | the caller's `person.id` (null if unlinked) |
+| `current_tenant_id()` | the caller's tenant (null until a person is linked) |
+| `current_has_role(target)` | holds a given role? |
+| `current_is_staff()` | holds `owner` / `coach` / `physio`? |
+| `can_access_person(target)` | may READ this person (self or staff in tenant) |
+| `can_manage_person(target)` | may WRITE this person (self or staff in tenant) |
+
+## Tenant isolation — first predicate of every policy
+
+The very first predicate on **every** policy on **every** domain table is
+`tenant_id = current_tenant_id()`. A user can never see or touch another gym's
+data, regardless of role. Roles apply *within* that tenant filter.
+
+<Callout>
+The SaaS operator (us) acts out-of-band via the **service role** (bypasses RLS) —
+never via a policy that widens tenant access. No end-user role, including a gym
+`owner`, ever crosses tenant boundaries.
+</Callout>
+
+## As-implemented model: tenant-wide staff visibility
+
+v1 uses **tenant-wide staff visibility**: any staff member (`current_is_staff()`)
+can read/manage any person in their tenant, and clients see **their own** data via
+`current_person_id()`. The per-coach model (`primary_coach_id` / group / clearance)
+in the backend design doc is the **v1.x tightening** — `can_access_person()` /
+`can_manage_person()` are the single functions to extend then, not 30 policies.
+
+The typical shape (e.g. `logged_entries`):
+
+- **select** — `tenant_id = current_tenant_id() AND (person_id = current_person_id() OR current_is_staff())`
+- **insert** — additionally `logged_by = current_person_id()` (clients log their
+  own; staff log on-behalf with `logged_by = me`).
+
+## SECURITY DEFINER RPCs
+
+Some actions a client is allowed to *trigger* touch **staff-write-only** tables.
+Those are exposed as definer RPCs that re-check authorization internally:
+
+| RPC | Why definer | Auth check |
+| --- | --- | --- |
+| `assign_template(program, person, name?)` | writes `assignment_*` | staff-in-tenant |
+| `redeem_invite(code)` | new signup has no person/tenant yet | valid pending invite |
+| `complete_session(assignment_session)` | client can't write `assignment_sessions` | owns-the-assignment OR staff |
+| `swap_assignment_exercise(ae, new_exercise)` | client can't write `assignment_exercises` | owns-the-assignment OR staff |
+
+## Health data — GDPR (special category)
+
+`health_flags` (v1) and `clinical_notes` (v1.x) are **special-category personal
+data**, shared across two legal entities (the company + Urban's physio practice).
+Plan for: recorded consent + lawful basis, a data-sharing agreement governing
+coach↔physio visibility, right to erasure/export (cascade on person delete), an
+access audit log, and least privilege (default coaches to *summary* clinical
+visibility). Do not store real health data in production until consent + the
+sharing agreement are in place.
+
+## Auth
+
+Shared across app + website (same Supabase project): **email magic link + Google
+SSO + Apple SSO** (Apple required by App Store review when any third-party SSO is
+offered on iOS). A brand-new `auth.users` row has no `person`, so
+`current_tenant_id()` is null and RLS returns nothing until the user is linked —
+via an [invite](/docs/features/clients-and-invites) or (later) tenant onboarding.
+Clients use the **publishable** key; the **service-role** key never ships.

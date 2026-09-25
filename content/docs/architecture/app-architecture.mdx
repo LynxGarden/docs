@@ -1,0 +1,49 @@
+---
+title: App Architecture
+description: How the Flutter app is structured — layers, state, and the conventions every feature follows.
+---
+
+The app (`Lynx-app`) is scaffolded from the Calda Flutter starter. **Flutter +
+Riverpod (codegen) + go_router + Supabase.**
+
+## Layers
+
+```
+lib/
+├── core/        theme, router, supabase client wrapper, config, utils
+├── features/    one folder per feature (auth, exercises, programs, clients, training…)
+│   └── <feature>/
+│       ├── data/          models + repository
+│       ├── application/   providers
+│       └── presentation/  screens + widgets
+└── shared/      models, providers, widgets (app_button, app_text_field, app_toast…)
+```
+
+## Conventions (the load-bearing ones)
+
+- **Design system always** — `AppColors.*`, `AppTextStyles.*`, `AppSpacing.*`,
+  `AppRadius.*`. Branding: forest `#004225` on cream `#F5F1E8`.
+- **Repository pattern** — Supabase is **never** called from UI. Access via
+  `SupabaseClientWrapper.db('table')`, `.auth`, `.functions`, `.rpc<T>()`.
+- **Explicit columns** — queries always `.select('col1, col2')`, never `*`.
+- **Riverpod for shared state** — `FutureProvider` for async, `StreamProvider` for
+  realtime; `setState` only for transient UI. Run `dart run build_runner build`
+  after editing annotated providers/Freezed models.
+- **Error handling** — repositories throw `AppException` with a friendly message;
+  UI catches and shows `AppToast.show()`. Never leak raw backend errors.
+- **Tenant-aware** — `currentUserProvider` resolves the linked person + tenant;
+  routing splits **client** vs **staff** shells by role.
+- **i18n** — EN + SL throughout.
+
+## Auth & flavors
+
+Google / Apple SSO + email magic link (shared with the website). `dev` / `prod`
+flavors (`main_dev.dart` / `main_prod.dart`). Native per-flavor bundle IDs land at
+the hardening checkpoint (CP6).
+
+## Companion repos
+
+- **[Backend](/docs/backend/data-model)** — Supabase Postgres / Auth / Storage.
+- **Website** (`Lynx-website`) — static, build-generated (`node build.mjs`, edit
+  `src/*` never the HTML); hosts marketing + login + the future coach/admin
+  dashboard.

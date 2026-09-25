@@ -1,0 +1,55 @@
+---
+title: Getting Started
+description: Clone the repos, run the backend and app locally, and find your way around.
+---
+
+## Repos & access
+
+All three repos live under the GitHub org **`LynxGarden`** and are cloned via the
+SSH alias `github.com-lynxgarden` (dedicated key + per-repo git identity —
+`user.name = LynxGarden`, `user.email = lynx.garden@proton.me`).
+
+```bash
+git clone git@github.com-lynxgarden:LynxGarden/frontend-app.git   Lynx-app
+git clone git@github.com-lynxgarden:LynxGarden/backend-supabase.git Lynx-backend
+git clone git@github.com-lynxgarden:LynxGarden/docs.git            Lynx-docs
+```
+
+## Backend (Supabase)
+
+```bash
+cd Lynx-backend
+supabase start          # local stack (ports remapped +1000 in config.toml)
+supabase db reset       # apply all migrations + seed (run after ADDING a migration)
+supabase db push        # deploy migrations to the hosted project
+```
+
+Hosted project ref: `afrqrnipjrnwnwxrfjvx`. Lynx Center is seeded as tenant #1
+with a fixed UUID (`00000000-0000-0000-0000-000000000001`).
+
+<Callout type="warn">
+After adding a migration, run `supabase db reset` locally (not just `start`) so
+the new file is applied, then `supabase db push` to deploy to the cloud.
+</Callout>
+
+## App (Flutter)
+
+```bash
+cd Lynx-app
+flutter pub get
+dart run build_runner build     # after editing Riverpod/Freezed annotations
+flutter run --flavor dev -t lib/main_dev.dart
+```
+
+## This docs site
+
+```bash
+cd Lynx-docs
+npm install
+npm run dev       # http://localhost:3000
+npm run build     # static export to out/ (GitHub Pages)
+```
+
+Pages live in `content/docs/**.mdx`. **Every feature ships with its doc page** —
+see the feature section. The `fumadocs-doc-sync` skill flags pages that have
+drifted from the code.

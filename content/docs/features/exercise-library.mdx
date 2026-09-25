@@ -1,0 +1,44 @@
+---
+title: Exercise Library
+description: Coach-owned, tenant-scoped exercise library with tags and link-based video. (CP1)
+---
+
+Checkpoint **CP1** · App: `features/exercises` · Backend migration: `exercises`.
+
+Each coach builds **their own** library (full CRUD). Every exercise has a custom
+name, a video (link-based in v1), a description, and **tags** — the tags drive
+search and the later tag-driven "swap exercise" in the [daily loop](/docs/features/daily-loop).
+
+## Data
+
+<Callout>Tables: `exercises`, `tags`, `exercise_tags` (join). All carry `tenant_id`.</Callout>
+
+**`exercises`**
+
+| Column | Notes |
+| --- | --- |
+| `id` | uuid pk |
+| `tenant_id` | tenant isolation |
+| `owner_id` | the coach (person) who owns it |
+| `name` | required |
+| `description` | optional |
+| `video_url` | link-based (v1 default) |
+| `video_storage_path` | reserved for hosted video (later) |
+
+**`tags`** are faceted by `category` (movement pattern · main muscle group ·
+equipment · tempo, extensible), unique per `(tenant_id, category, label)`.
+`exercise_tags` joins exercises ↔ tags.
+
+## RLS
+
+Tenant isolation is the first predicate on every policy. Within a tenant,
+exercises are readable/writable per the coach-ownership model (see
+[Security & RLS](/docs/backend/security-and-rls)).
+
+## App
+
+- `ExerciseRepository` (repository pattern; explicit column selects).
+- `exercisesProvider` (per-coach), `exerciseTagsProvider`.
+- Library screen: searchable / tag-filterable list.
+- Editor: video field, description, tag chip editor with **find-or-create** tags;
+  delete. Video opens via `url_launcher`.

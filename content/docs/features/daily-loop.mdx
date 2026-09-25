@@ -1,0 +1,89 @@
+---
+title: Daily Loop (the hero)
+description: The client trains in the gym — pick a session, see target · video · last time, log actuals, complete. (CP4)
+---
+
+Checkpoint **CP4** — the single most important slice · App: `features/training`
+(client shell **Train** tab) · Backend migration: `logging` (**CP-B4**).
+
+<Callout type="info">
+**Status:** Backend (CP-B4) is **done & verified**. The app UI is **in progress**
+— this page is updated as the Train tab lands.
+</Callout>
+
+## The flow
+
+1. Open app → the assigned program shows as a **list of sessions** → a badge marks
+   which was completed last (`assignment_sessions.last_completed_at`) → pick the next.
+2. Enter a session → ordered list of exercises.
+3. Per exercise:
+   - **See the target** — the prescription snapshot.
+   - **Watch the video** (`url_launcher`).
+   - **See last time's actuals** ← the priority feature.
+   - **Enter actuals** — sets / reps / weight / time.
+   - **Swap** the exercise (tag-driven suggestions from the same library).
+4. **Mark session complete.**
+
+Online-only in v1 (clear banner when disconnected).
+
+## "Last time" — first-class
+
+Backed by a per-client, per-exercise history in **`logged_entries`**. When an
+exercise renders we fetch the most recent prior entry for `(person_id,
+exercise_id)` and show it beside today's inputs. The index below is load-bearing:
+
+```sql
+create index logged_entries_last_time_idx
+  on public.logged_entries (person_id, exercise_id, logged_at desc);
+```
+
+### `logged_entries`
+
+| Column | Notes |
+| --- | --- |
+| `tenant_id` | tenant isolation |
+| `person_id` | whose history this is |
+| `exercise_id` | for the "last time" lookup (kept stable across swaps) |
+| `assignment_exercise_id` | the log's context (nullable) |
+| `entry_type` | default `strength_set` (extensible) |
+| `set_index`, `reps`, `weight`, `time_seconds` | actuals |
+| `data` | jsonb — future entry types |
+| `logged_by` | who logged it (client, or staff on-behalf) |
+| `logged_at` | timestamp; drives "last time" ordering |
+
+## RLS
+
+- **Client** reads/writes **their own** rows (`person_id = logged_by = me`).
+- **Staff** read the tenant's clients' rows and may **log on behalf**
+  (`logged_by = me`, any `person_id` in tenant).
+- A client cannot log for another person, and cannot spoof `logged_by`.
+
+## RPCs
+
+Clients own their assignment but **cannot write `assignment_*` directly** (those
+tables are staff-write only). So the two write actions in the runner go through
+`SECURITY DEFINER` RPCs that authorise **owns-the-assignment OR staff**:
+
+- **`complete_session(assignment_session)`** — stamps `last_completed_at = now()`.
+- **`swap_assignment_exercise(assignment_exercise, new_exercise)`** — repoints the
+  snapshot to a different library exercise, copies the new `name`/`video_url` into
+  the snapshot, and records the original in `swapped_from_exercise_id` (kept stable
+  across repeated swaps via `coalesce`), so `exercise_id`-keyed "last time" history
+  stays uncorrupted.
+
+<Callout>
+Verified via a rolled-back two-tenant psql test: last-time lookup, session
+completion, swap history, cross-person/cross-tenant denial, and staff on-behalf
+logging all pass.
+</Callout>
+
+## App (in progress)
+
+- Assignment-instance models (read the `assignment_*` tables).
+- `TrainingRepository`: `loadActiveAssignment`, `lastEntriesFor(exerciseId)`,
+  `logSet`, `completeSession`, `swapExercise`.
+- Providers: `assignedProgramProvider(personId)`, `sessionProvider(sessionId)`,
+  `lastEntryProvider(personId, exerciseId)`, plus transient logging state.
+- Train tab: session menu (last-completed badge) → session runner (target · video
+  · **LAST TIME** · log inputs · swap · Mark complete). Gym-friendly: big numeric
+  steppers, numeric keyboards, minimal taps, last-time values prefilled.

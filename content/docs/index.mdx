@@ -1,0 +1,59 @@
+---
+title: Overview
+description: What Lynx is, who it's for, and how these docs are organised.
+---
+
+**Lynx** is a **multi-tenant SaaS** training & physiotherapy platform. Lynx
+Center (a Ljubljana gym) is customer/tenant #1; the product is built to be sold
+to other gyms afterwards.
+
+These are the **engineering docs**: the app, the backend, and every feature as
+it ships. Each feature has its own page and no feature is considered done until
+its page here is current.
+
+## The three repos
+
+<Cards>
+  <Card title="Lynx-app" href="/docs/architecture/app-architecture">
+    Flutter app (iOS + Android). Riverpod + go_router + Supabase.
+  </Card>
+  <Card title="Lynx-backend" href="/docs/backend/data-model">
+    Supabase (Postgres / Auth / Storage). Migrations, schema, RLS.
+  </Card>
+  <Card title="Lynx-website" href="/docs/architecture/app-architecture">
+    Static marketing site + login + future coach/admin dashboard.
+  </Card>
+</Cards>
+
+## Core model in one paragraph
+
+The domain identity is a **`person`**, which may or may not be linked to an
+`auth.users` account — **a client record is not a user account**, so staff can
+operate account-less clients (elderly / 1-on-1 PT). Every row is scoped by
+`tenant_id` with tenant-isolation RLS. Assigning a program to a client creates
+an **instance (a snapshot copy), not a reference**, so per-client edits and
+"last time" history stay clean. Coaches build **their own** exercise library;
+programs are menus of sessions (**no calendar**), and the client's daily loop is
+the hero: pick a session → see target · video · **last time** → log actuals →
+mark complete.
+
+## Feature docs
+
+<Cards>
+  <Card title="Exercise library" href="/docs/features/exercise-library" />
+  <Card title="Program builder" href="/docs/features/program-builder" />
+  <Card title="Assignments" href="/docs/features/assignments" />
+  <Card title="Clients & invites" href="/docs/features/clients-and-invites" />
+  <Card title="Daily loop (the hero)" href="/docs/features/daily-loop" />
+</Cards>
+
+## Stack & key decisions
+
+- **App:** Flutter + Riverpod (codegen) + go_router + Supabase; native Cupertino
+  tab bar with client/staff role routing; dev/prod flavors.
+- **Backend:** Supabase Postgres. Every domain table carries `tenant_id`;
+  RLS is the first line of authorization. SECURITY DEFINER RPCs for actions a
+  client is allowed to trigger but not to write directly.
+- **Auth:** shared across app + web — email magic link + Google SSO + Apple SSO.
+- **i18n:** bilingual EN + SL.
+- **Branding:** forest `#004225` on cream `#F5F1E8`; Bricolage Grotesque + Geist.

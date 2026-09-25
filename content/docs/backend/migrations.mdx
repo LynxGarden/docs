@@ -1,0 +1,45 @@
+---
+title: Migrations & Checkpoints
+description: The applied migration history and the local → cloud workflow.
+---
+
+Migrations live in `Lynx-backend/supabase/migrations/`. Each maps to a backend
+checkpoint (CP-B*).
+
+## Applied history
+
+| Migration | Checkpoint | Adds |
+| --- | --- | --- |
+| `…_tenancy.sql` | CP-B0 | `tenants` + `set_updated_at()` trigger fn; Lynx Center seed |
+| `…_identity.sql` | CP-B0 | `persons`, `person_roles`, the RLS helper functions |
+| `…_exercises.sql` | CP-B1 | `exercises`, `tags`, `exercise_tags` + coach-ownership RLS |
+| `…_program_builder.sql` | CP-B2 | `programs`, `sessions`, `session_exercises` + `owns_program()` |
+| `…_assignments_clients.sql` | CP-B3 | `assignment_*`, `health_flags`, `invites` + `assign_template()` / `redeem_invite()` |
+| `…_logging.sql` | CP-B4 | `logged_entries` (+ last-time index) + `complete_session()` / `swap_assignment_exercise()` |
+
+## Workflow
+
+```bash
+supabase start          # local stack (ports remapped +1000 in config.toml)
+# ...add a new migration file...
+supabase db reset       # REQUIRED after adding a migration — applies it + reseeds
+supabase db push        # deploy to the hosted project (afrqrnipjrnwnwxrfjvx)
+```
+
+<Callout type="warn">
+After adding a migration, `supabase db reset` (not just `start`) — otherwise the
+new file isn't applied locally.
+</Callout>
+
+## Verifying RLS
+
+Every checkpoint's RLS is verified with a **rolled-back** two-tenant / two-person
+`psql` test (simulating users via `set local role authenticated` +
+`request.jwt.claims`) before the migration is committed. The test asserts both the
+positive paths and the denials (cross-person, cross-tenant), then `rollback`s so no
+state persists.
+
+## Cloud
+
+Hosted project ref `afrqrnipjrnwnwxrfjvx`; all migrations pushed and live; no edge
+functions. A hosted **read-only MCP** (project-scoped) is available for querying.
