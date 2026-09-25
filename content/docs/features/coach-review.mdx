@@ -1,0 +1,45 @@
+---
+title: Coach Review
+description: The coach closes the loop — seeing what clients completed and the actuals they logged. (CP5)
+---
+
+Checkpoint **CP5** · App: `features/review` · Backend: none new (reads under the
+staff RLS from CP-B3/CP-B4).
+
+v1 is **review-on-login** (fetch on open), not realtime.
+
+## What the coach sees
+
+- **Review tab** — a tenant-wide feed of recently completed sessions across all
+  the coach's clients (client name · program · session label · date), newest
+  first. Tap one to see the actuals.
+- **Per client** — from a client record → **Completed sessions** → the client's
+  completed sessions with dates → tap → the logged actuals per exercise.
+
+A session counts as "completed" when `assignment_sessions.last_completed_at` is
+set (stamped by the client via [`complete_session`](/docs/features/daily-loop#rpcs)).
+
+## Data & queries
+
+No new tables. `ReviewRepository`:
+
+- `recentCompleted(tenantId)` — `assignment_sessions` where `last_completed_at is
+  not null`, inner-joined to `assignments` for name + `person_id`, newest first;
+  client names resolved in a second batched `persons` query.
+- `clientCompleted(tenantId, personId)` — the same, filtered to one client.
+- `sessionActuals(tenantId, assignmentSessionId, personId)` — each of the
+  session's `assignment_exercises` (in order) paired with the client's **most
+  recent logged occasion** for that `exercise_id` (entries within 6h of the newest,
+  ordered by set index).
+
+## RLS
+
+Staff read the tenant's `assignment_*` and `logged_entries` (granted in
+CP-B3/CP-B4). Tenant isolation applies first; a coach never sees another gym's data.
+
+## App
+
+Providers: `reviewFeedProvider`, `clientCompletedProvider(personId)`,
+`sessionActualsProvider((sessionId, personId))`. Screens: `ReviewScreen` (tab,
+pull-to-refresh), `ClientReviewScreen` (per client), `SessionActualsScreen`
+(drill-in).

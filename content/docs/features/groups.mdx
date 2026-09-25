@@ -1,0 +1,50 @@
+---
+title: Groups & Rosters
+description: One program assigned to a group; every athlete logs individually. (CP5)
+---
+
+Checkpoint **CP5** · App: `features/groups` · Backend migration: `groups` (CP-B5).
+
+**Shared prescription, individual performance data.** A program assigned to a
+group fans out an **independent instance copy to each member** (reusing the
+[assignment snapshot model](/docs/features/assignments)), so athletes share the
+prescription at assign time but each logs on their own phone and keeps their own
+["last time"](/docs/features/daily-loop).
+
+## Data
+
+- **`groups`** — `name`, `owner_id` (coach), tenant-scoped.
+- **`group_members`** — join of `group_id` ↔ `person_id`, unique per pair.
+- **`assignments.group_id`** — records that an instance came from a group fan-out
+  (provenance; nullable).
+
+## `assign_template_to_group(program, group)` — RPC
+
+`SECURITY DEFINER`, staff-only. Loops the group's members and calls
+`assign_template(program, member, name, group)` for each — one independent
+instance per athlete, tagged with `group_id`. Returns the count. `assign_template`
+gained an optional `p_group` argument (the 3-arg per-client call still resolves via
+its default).
+
+## RLS
+
+- **groups** — staff manage the tenant's; a **member** may read a group they belong
+  to.
+- **group_members** — staff read/write the tenant's; a member reads only **their
+  own** membership row.
+- Independence is enforced by the existing per-client RLS on `assignments` /
+  `logged_entries`: each athlete sees only their own instance and logs.
+
+<Callout>
+Verified via a rolled-back psql test: a 3-member fan-out creates 3 independent
+instances, each athlete sees only their own assignment + logs, a client cannot
+group-assign, and staff review reads every member's actuals.
+</Callout>
+
+## App
+
+`GroupRepository` (list/create/delete groups, list/add/remove members,
+`assignToGroup`) + `groupsProvider` / `groupMembersProvider(groupId)`. Screens:
+`GroupsListScreen` (Groups tab, create) and `GroupDetailScreen` (members add/remove
+from the client list, **Assign program** → fan-out RPC with an "assigned to N
+athletes" toast, delete group).

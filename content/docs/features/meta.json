@@ -5,6 +5,8 @@
     "program-builder",
     "assignments",
     "clients-and-invites",
-    "daily-loop"
+    "daily-loop",
+    "coach-review",
+    "groups"
   ]
 }
