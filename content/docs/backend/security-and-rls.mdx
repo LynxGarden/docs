@@ -70,9 +70,11 @@ sharing agreement are in place.
 
 ## Auth
 
-Shared across app + website (same Supabase project): **email magic link + Google
-SSO + Apple SSO** (Apple required by App Store review when any third-party SSO is
-offered on iOS). A brand-new `auth.users` row has no `person`, so
+The app uses **email + password** with **OTP** email verification and password
+reset (no magic-link deep links); **Google/Apple SSO** is wired but gated off
+(`--dart-define=ENABLE_SSO=true`, Apple required by App Store review when any
+third-party SSO is offered on iOS). See [Authentication](/docs/features/authentication).
+A brand-new `auth.users` row has no `person`, so
 `current_tenant_id()` is null and RLS returns nothing until the user is linked —
 via an [invite](/docs/features/clients-and-invites) or (later) tenant onboarding.
 Clients use the **publishable** key; the **service-role** key never ships.
