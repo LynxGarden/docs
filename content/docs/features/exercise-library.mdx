@@ -6,8 +6,18 @@ description: Coach-owned, tenant-scoped exercise library with tags and link-base
 Checkpoint **CP1** · App: `features/exercises` · Backend migration: `exercises`.
 
 Each coach builds **their own** library (full CRUD). Every exercise has a custom
-name, a video (link-based in v1), a description, and **tags** — the tags drive
-search and the later tag-driven "swap exercise" in the [daily loop](/docs/features/daily-loop).
+name, a **video** (hosted **or** linked), a description, and **tags** — the tags
+drive search and the tag-driven "swap exercise" in the [daily loop](/docs/features/daily-loop).
+
+## Video: hosted or linked
+
+- **Hosted** (`video_storage_path`) — the coach uploads a clip to a **private
+  Supabase Storage bucket** `exercise-videos` (path `{tenant_id}/{file}`; staff-only
+  upload, tenant-member read via storage RLS). It streams **inline** in-app via a
+  short-lived **signed URL**.
+- **Linked** (`video_url`) — an external URL (YouTube/Vimeo) opened in the browser.
+- The daily loop reads the snapshot (`assignment_exercises.video_storage_path` /
+  `video_url`), so hosted video plays inline in the session runner too.
 
 ## Data
 

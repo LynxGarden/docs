@@ -17,6 +17,7 @@ checkpoint (CP-B*).
 | `…_assignments_clients.sql` | CP-B3 | `assignment_*`, `health_flags`, `invites` + `assign_template()` / `redeem_invite()` |
 | `…_logging.sql` | CP-B4 | `logged_entries` (+ last-time index) + `complete_session()` / `swap_assignment_exercise()` |
 | `…_groups.sql` | CP-B5 | `groups`, `group_members`, `assignments.group_id` + `assign_template_to_group()` (and `assign_template` gains `p_group`) |
+| `…_exercise_video_storage.sql` | — | private `exercise-videos` Storage bucket + `storage.objects` RLS; `assignment_exercises.video_storage_path` snapshot |
 
 ## Workflow
 
