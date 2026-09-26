@@ -1,0 +1,50 @@
+---
+title: Profiles & Avatars
+description: Customizable hand-drawn avatars (or a photo), role-colored, plus the profile header and first-run onboarding. (CP6)
+---
+
+App: `features/settings` + `features/onboarding` · Backend: `users_data` columns
++ private `avatars` bucket.
+
+Every user (client, coach, physio, owner) has a profile with an avatar shown
+everywhere in place of initials, tinted by role.
+
+## Avatar model
+Stored on `users_data` as two columns:
+- `avatar_kind` — `null` (→ initials) · `dicebear` · `photo`
+- `avatar_value` — for `dicebear`: a JSON config; for `photo`: a private storage path.
+
+### Customizable avatar (DiceBear notionists)
+A hand-drawn, black-ink **[notionists](https://www.dicebear.com/styles/notionists/)**
+avatar (CC0), customizable feature-by-feature: **Hair · Eyes · Eyebrows · Mouth ·
+Nose · Glasses · Beard · Clothing**. The builder (`AvatarBuilderScreen`) shows a
+live preview and a grid of thumbnails per category (each an API-rendered
+preview), plus **Shuffle**. The chosen config is stored as JSON; avatars render
+from the DiceBear **HTTP API (PNG)** via `cached_network_image` (online-only v1;
+self-hostable later — one base-URL constant in `AvatarConfig`).
+
+### Photo
+Alternatively upload a photo (`image_picker`) → the private `avatars` bucket
+(`{tenant}/{person}/…`), served via a short-lived **signed URL**
+(`avatarPhotoUrlProvider`). Self-or-staff write, tenant-scoped read (RLS).
+
+### Role-colored disc
+`AppAvatar` draws the avatar on a light role-tinted disc with a role-colored
+**ring** — client (forest), coach/owner (clay), physio (teal) — so the same
+avatar reads the person's role. The disc stays light in both light **and dark**
+themes so black line-art and initials remain legible.
+
+## Profile header & settings
+Settings opens with a **profile header** (avatar + name + role) → **Profile
+settings** (`/settings/profile`): edit first/last name, date of birth, and avatar
+(via the picker: build / upload / remove).
+
+## Onboarding
+First run after linking a `users_data` row, `RootShell` shows **onboarding**
+(gated on `onboarding_complete = false`): **name** (required) → **avatar**
+(optional) → **date of birth** (optional) → finish sets `onboarding_complete`.
+Everything is editable later in Settings.
+
+<Callout type="info">
+Renders require network to `api.dicebear.com`; the stored config carries no PII.
+</Callout>

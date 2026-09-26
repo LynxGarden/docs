@@ -1,6 +1,6 @@
 ---
 title: Data Model
-description: The tenant-scoped Postgres schema — persons, the training engine, and generic logging.
+description: The tenant-scoped Postgres schema — users_data, the training engine, and generic logging.
 ---
 
 Supabase Postgres. **Every** domain row carries `tenant_id` and a
@@ -25,7 +25,7 @@ via `set_updated_at()`).
 | Table | Purpose |
 | --- | --- |
 | `tenants` | one row per gym/studio |
-| `persons` | the client/staff record (may be account-less) |
+| `users_data` | the client/staff record (may be account-less; formerly `persons`). Carries `avatar_kind`/`avatar_value`, `date_of_birth`, `onboarding_complete` |
 | `person_roles` | `owner` / `coach` / `physio` / `client` (a person may hold several) |
 | `exercises`, `tags`, `exercise_tags` | [coach-owned library](/docs/features/exercise-library) |
 | `programs`, `sessions`, `session_exercises` | [template side](/docs/features/program-builder) |
@@ -42,12 +42,23 @@ designed in the backend `docs/00-data-model.md` and land at later checkpoints �
 not covered here until built.
 </Callout>
 
+<Callout type="info">
+**Naming:** the spine table was renamed `persons` → `users_data` (house
+convention). FKs follow by OID; the helper functions and RPCs that named it were
+recreated. `person_roles` / `person_id` columns keep their names.
+
+**Storage buckets** (both private): `exercise-videos` and `avatars`
+(uploaded profile photos, path `{tenant}/{person}/…`, served via signed URLs).
+DiceBear avatars are a config on `users_data`, not stored files. See
+[Profiles & avatars](/docs/features/profiles-and-avatars).
+</Callout>
+
 ## Relationships
 
-- `tenants` → owns `persons`, `exercises`, `programs` (and everything else).
-- `auth.users` ⇢ optionally links to one `persons` row (`auth_user_id`, null =
+- `tenants` → owns `users_data`, `exercises`, `programs` (and everything else).
+- `auth.users` ⇢ optionally links to one `users_data` row (`auth_user_id`, null =
   account-less).
-- `persons` → `person_roles`, `health_flags`, `assignments`, `logged_entries`,
+- `users_data` → `person_roles`, `health_flags`, `assignments`, `logged_entries`,
   `invites`.
 - `exercises` → used in `session_exercises`, tagged via `exercise_tags`.
 - `programs` → `sessions` → `session_exercises` (the template).

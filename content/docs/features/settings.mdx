@@ -28,7 +28,7 @@ device locale. `LocalStorageService.init()` runs in `bootstrap()` before the app
 starts.
 
 <Callout type="info">
-This override is device-local. The `persons.locale` column is still the default
+This override is device-local. The `users_data.locale` column is still the default
 used when resolving the user; syncing the two (write-through to the DB) is a
 possible later refinement.
 </Callout>
@@ -95,7 +95,7 @@ The Edge Function (`Lynx-backend/supabase/functions/delete-account`):
    Edge runtime) to `auth.admin.deleteUser(user.id)`.
 
 Deleting the auth user revokes login; domain rows keyed on
-`persons.auth_user_id` follow the schema's FK behaviour.
+`users_data.auth_user_id` follow the schema's FK behaviour.
 
 ```bash
 supabase functions deploy delete-account

@@ -25,7 +25,7 @@ No new tables. `ReviewRepository`:
 
 - `recentCompleted(tenantId)` — `assignment_sessions` where `last_completed_at is
   not null`, inner-joined to `assignments` for name + `person_id`, newest first;
-  client names resolved in a second batched `persons` query.
+  client names resolved in a second batched `users_data` query.
 - `clientCompleted(tenantId, personId)` — the same, filtered to one client.
 - `sessionActuals(tenantId, assignmentSessionId, personId)` — each of the
   session's `assignment_exercises` (in order) paired with the client's **most

@@ -11,7 +11,7 @@ checkpoint (CP-B*).
 | Migration | Checkpoint | Adds |
 | --- | --- | --- |
 | `…_tenancy.sql` | CP-B0 | `tenants` + `set_updated_at()` trigger fn; Lynx Center seed |
-| `…_identity.sql` | CP-B0 | `persons`, `person_roles`, the RLS helper functions |
+| `…_identity.sql` | CP-B0 | `users_data`, `person_roles`, the RLS helper functions |
 | `…_exercises.sql` | CP-B1 | `exercises`, `tags`, `exercise_tags` + coach-ownership RLS |
 | `…_program_builder.sql` | CP-B2 | `programs`, `sessions`, `session_exercises` + `owns_program()` |
 | `…_assignments_clients.sql` | CP-B3 | `assignment_*`, `health_flags`, `invites` + `assign_template()` / `redeem_invite()` |

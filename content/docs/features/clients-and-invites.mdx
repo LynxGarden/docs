@@ -35,7 +35,7 @@ signs up, and their **new account binds to the pre-existing person row**.
 ### `redeem_invite(code)` — RPC
 
 `SECURITY DEFINER` (a freshly signed-up user has no person/tenant yet). It looks
-up a pending, unexpired invite, sets `persons.auth_user_id = auth.uid()` on the
+up a pending, unexpired invite, sets `users_data.auth_user_id = auth.uid()` on the
 target person **only if still unlinked**, and marks the invite `accepted`.
 
 ## App
