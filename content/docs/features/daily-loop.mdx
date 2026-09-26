@@ -88,9 +88,20 @@ logging all pass.
   `logged_by = self`), `completeSession`, `swapExercise` (last two via the RPCs).
 - **Providers** — `activeAssignmentProvider` (the signed-in client's instance),
   `lastEntriesProvider(exerciseId)` (family). Invalidated after complete/swap.
+  `activeAssignmentProvider` is a `StreamProvider`: it yields an initial REST
+  snapshot, then subscribes to realtime changes on the client's `assignments`
+  rows to auto-refresh when a coach (re)assigns a program. **Realtime is
+  best-effort** — the subscription is wrapped so a websocket that can't connect
+  (some networks, and reliably the iOS simulator) is swallowed rather than
+  surfaced: the tab keeps serving the last good REST snapshot, and
+  pull-to-refresh / invalidation still update it. It never falls into the
+  "You're offline" error state just because realtime is unavailable.
 - **Train tab** (`TrainScreen`) — the program name + session menu; each session
   card shows its exercise count and a **Completed** badge (from `last_completed_at`);
-  pull-to-refresh; empty/offline states.
+  pull-to-refresh; empty/offline states. The loading state uses a Train-tailored
+  skeleton (`SliverTrainSkeleton`) — a program-name header bar plus `AppCard`-shaped
+  session placeholders — so the shape matches the loaded list and doesn't shift on
+  the swap to real data.
 - **Session runner** (`SessionRunnerScreen`) — per exercise: name + **swap**,
   the **Target**, set-type & coach notes, **Watch video** (`url_launcher`), a
   **LAST TIME** block, today's logged sets, and numeric inputs (reps · weight ·

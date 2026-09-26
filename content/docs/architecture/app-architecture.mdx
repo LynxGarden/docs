@@ -22,7 +22,10 @@ lib/
 ## Conventions (the load-bearing ones)
 
 - **Design system always** — `AppColors.*`, `AppTextStyles.*`, `AppSpacing.*`,
-  `AppRadius.*`. Branding: forest `#004225` on cream `#F5F1E8`.
+  `AppRadius.*`. Branding: forest `#004225` on cream `#F5F1E8`. Ships **light +
+  dark** — drive colors through the semantic `AppColors` getters (`background`,
+  `surface`, `textPrimary`, `primary`, …), never raw brand tokens, so the theme
+  flips. See [Settings → Appearance](/docs/features/settings#appearance-dark-mode).
 - **Repository pattern** — Supabase is **never** called from UI. Access via
   `SupabaseClientWrapper.db('table')`, `.auth`, `.functions`, `.rpc<T>()`.
 - **Explicit columns** — queries always `.select('col1, col2')`, never `*`.
@@ -37,9 +40,11 @@ lib/
 
 ## Auth & flavors
 
-Google / Apple SSO + email magic link (shared with the website). `dev` / `prod`
-flavors (`main_dev.dart` / `main_prod.dart`). Native per-flavor bundle IDs land at
-the hardening checkpoint (CP6).
+Email + password with **OTP** email verification and **OTP** password reset — no
+magic-link deep links in v1 (see [Authentication](/docs/features/authentication)).
+Google / Apple SSO is wired but gated off (`--dart-define=ENABLE_SSO=true`).
+`dev` / `prod` flavors (`main_dev.dart` / `main_prod.dart`). Native per-flavor
+bundle IDs land at the hardening checkpoint (CP6).
 
 ## Companion repos
 

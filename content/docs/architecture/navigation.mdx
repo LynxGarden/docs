@@ -10,20 +10,29 @@ flat: auth routes, one `/app` entry that resolves the shell, and `/settings`.
 
 | Path | Screen |
 | --- | --- |
-| `/splash` | resolves to login or `/app` |
-| `/login`, `/signup`, `/forgot-password`, `/check-email`, `/verification-successful` | auth flow (public) |
-| `/auth/reset-password` | password-reset deep-link landing (`ChangePasswordScreen`) |
+| `/splash` | resolves to `/welcome` or `/app` |
+| `/welcome` | landing — brand mark + Create account / Log in |
+| `/login` | email + password sign-in |
+| `/signup` | email + password sign-up |
+| `/verify-email?email=` | 6-digit OTP to confirm a new sign-up |
+| `/forgot-password` | request a password-reset code |
+| `/reset-password?email=` | enter reset code + choose a new password |
 | `/app` | **`RootShell`** — resolves role/tenant, shows the right shell |
 | `/settings` → `/settings/change-password` | settings |
+
+All auth routes are **public**. See [Authentication](/docs/features/authentication)
+for the full flow.
 
 ## The redirect gate
 
 `refreshListenable` is an auth-state notifier, so go_router re-evaluates on every
 auth change:
 
-- Password recovery takes precedence — the user is pinned to
-  `/auth/reset-password` until they set a new password.
-- Unauthenticated + non-public route → `/login`.
+- Password recovery takes precedence — verifying the reset OTP emits
+  `passwordRecovery`, which latches `isRecovering` and pins the user to
+  `/reset-password` until the new password is set (returning `null` so the
+  `?email=` query param is preserved).
+- Unauthenticated + non-public route → `/welcome`.
 - Authenticated + on a public auth route → `/splash` to resolve.
 
 ## RootShell: role → shell
@@ -34,15 +43,16 @@ tenant / role and shows one of:
 - **Finish-setup** — authenticated but **not yet linked** to a person (e.g. a fresh
   signup redeeming an [invite](/docs/features/clients-and-invites)). Until linked,
   RLS returns nothing.
-- **Client shell** — Train · Progress/history · Profile.
+- **Client shell** — Train · Progress/history · [Settings](/docs/features/settings).
 - **Staff shell** — Clients · Library (Exercises + Programs) · Review · Groups ·
-  Profile.
+  [Settings](/docs/features/settings).
 
 Tabs live **inside** each shell (adaptive native Cupertino tab bar / Material
 pill), not as separate go_router paths. The client [daily loop](/docs/features/daily-loop)
 is the Train tab.
 
 <Callout>
-Deep links are declared in `core/config/deeplink_config.dart`; the reset-password
-callback is the one wired in v1.
+Auth is **password-based with no deep links** in v1 — email verification and
+password reset both use numeric OTP codes. Deep-link configs remain in
+`core/config/deeplink_config.dart` only for the (gated-off) SSO callback.
 </Callout>

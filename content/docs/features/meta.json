@@ -1,12 +1,14 @@
 {
   "title": "Features",
   "pages": [
+    "authentication",
     "exercise-library",
     "program-builder",
     "assignments",
     "clients-and-invites",
     "daily-loop",
     "coach-review",
-    "groups"
+    "groups",
+    "settings"
   ]
 }

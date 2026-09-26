@@ -1,0 +1,109 @@
+---
+title: Settings
+description: The Settings tab — profile info, language, change password, log out, and account deletion.
+---
+
+App: `features/settings` · Backend: Supabase Auth + the `delete-account` Edge Function.
+
+The last tab in **both** shells (staff and client) is **Settings** (previously
+"Profile"). It uses the same collapsing large-title header as the other list
+screens and iOS-style **grouped sections**.
+
+## Sections
+
+| Section | Rows |
+| --- | --- |
+| **Profile** | Email (read-only), Role (Owner / Coach / Physio / Client) |
+| **General** | Language (English / Slovenščina) · Appearance (System / Light / Dark) |
+| **Security** | Change password → `/settings/change-password` |
+| **Account** | Log out (confirms) · Delete account (destructive, confirms first) |
+
+## Language switching
+
+The chosen language is an app-level override held by `localeProvider`
+(`shared/providers/locale_provider.dart`) and **persisted** in
+`LocalStorageService` (`shared_preferences`, non-sensitive). `MaterialApp.locale`
+reads it, so the switch is instant and survives restarts. `null` = follow the
+device locale. `LocalStorageService.init()` runs in `bootstrap()` before the app
+starts.
+
+<Callout type="info">
+This override is device-local. The `persons.locale` column is still the default
+used when resolving the user; syncing the two (write-through to the DB) is a
+possible later refinement.
+</Callout>
+
+## Appearance (dark mode)
+
+The app ships **light + dark** themes — the brand flipped: light is
+forest-on-cream, dark is a deep-forest background with cream text and cream
+primary actions. The chosen mode (**System / Light / Dark**) is held by
+`themeModeProvider` (persisted in `shared_preferences`).
+
+Because the app reads `AppColors.*` directly (not `Theme.of`), dark mode is
+driven by a runtime flag: `AppColors.dark` is set by `MyApp` from the resolved
+brightness, and the **semantic** colors (`background`, `surface`, `textPrimary`,
+`primary`, …) are getters that resolve against it — so flipping the flag repaints
+the whole tree. Raw brand tokens (`forest`, `cream`, `ink`) stay constant; new
+UI must use the semantic getters to stay theme-aware.
+
+## Change password
+
+Reuses `ChangePasswordScreen` (`/settings/change-password`) — the standard
+new-password + confirm form with live `PasswordRequirements`, calling
+`updateUser(password:)`. This is a **logged-in** change (distinct from the
+[forgot-password OTP reset](/docs/features/authentication)).
+
+## Session teardown
+
+Both **Log out** and **Delete account** end the session through one authority —
+`SessionService.clear(ref)` (`shared/data/session_service.dart`) — so a shared
+device never leaks one account's data into the next. It runs, best-effort (each
+step is wrapped so one failure can't block the rest):
+
+1. **External-service identities** — `OneSignalService.clearUser()` (→
+   `OneSignal.logout()`) and `RevenueCatService.logOut()` (→ `Purchases.logOut()`).
+   Both are stubs today, but the call sites exist so enabling the SDKs "just works".
+2. **Supabase auth** — `signOut()` clears the persisted session/token store.
+3. **Secure storage** — `SecureStorageService.deleteAll()` wipes any stashed
+   tokens/secrets (Keychain / EncryptedSharedPreferences).
+4. **In-memory state** — invalidates **every** user-scoped Riverpod provider
+   (clients, exercises, programs, groups, review, training, plus their `.family`
+   instances), not just `currentUserProvider`.
+
+Device preferences (**theme**, **language**) live in `LocalStorageService` and are
+intentionally **kept** — they aren't user data, and resetting them on logout would
+be jarring.
+
+<Callout type="warn">
+The provider list in `SessionService._userScoped` is the source of truth. **Any
+new provider returning user- or tenant-scoped data must be added there**, or its
+cache will survive across accounts on a shared device.
+</Callout>
+
+## Delete account
+
+A destructive row → confirm dialog → `AccountRepository.deleteAccount()` invokes
+the **`delete-account` Edge Function**, then runs the full
+[session teardown](#session-teardown) and returns to `/welcome`.
+
+The Edge Function (`Lynx-backend/supabase/functions/delete-account`):
+1. Reads the caller's JWT from the `Authorization` header (attached automatically
+   by `functions.invoke`).
+2. Resolves the user via the anon client's `auth.getUser()`.
+3. Uses the **service role** (`SUPABASE_SERVICE_ROLE_KEY`, auto-injected in the
+   Edge runtime) to `auth.admin.deleteUser(user.id)`.
+
+Deleting the auth user revokes login; domain rows keyed on
+`persons.auth_user_id` follow the schema's FK behaviour.
+
+```bash
+supabase functions deploy delete-account
+```
+
+<Callout type="warn">
+Full GDPR erasure of a user's **domain** data (person + owned exercises/programs/
+logs, respecting multi-tenant ownership) is a follow-up: define the cascade in a
+migration (via the Supabase agent skill) so `deleteUser` triggers it, or extend
+the function to purge owned rows with the service role.
+</Callout>
