@@ -91,19 +91,22 @@ The Edge Function (`Lynx-backend/supabase/functions/delete-account`):
 1. Reads the caller's JWT from the `Authorization` header (attached automatically
    by `functions.invoke`).
 2. Resolves the user via the anon client's `auth.getUser()`.
-3. Uses the **service role** (`SUPABASE_SERVICE_ROLE_KEY`, auto-injected in the
-   Edge runtime) to `auth.admin.deleteUser(user.id)`.
+3. With the **service role** (`SUPABASE_SERVICE_ROLE_KEY`, auto-injected):
+   - resolves the caller's `users_data` row + `person_roles`;
+   - **client** → deletes the `users_data` row (FK cascades their assignments,
+     logged_entries, health_flags, group memberships) — true erasure;
+   - **staff** (owner/coach/physio) → keeps `users_data` so their owned
+     exercises/programs aren't wiped;
+   - always `auth.admin.deleteUser(user.id)` to revoke the login.
 
-Deleting the auth user revokes login; domain rows keyed on
-`users_data.auth_user_id` follow the schema's FK behaviour.
+Returns `{ success, erased }` (`erased = true` when the domain row was deleted).
 
 ```bash
 supabase functions deploy delete-account
 ```
 
 <Callout type="warn">
-Full GDPR erasure of a user's **domain** data (person + owned exercises/programs/
-logs, respecting multi-tenant ownership) is a follow-up: define the cascade in a
-migration (via the Supabase agent skill) so `deleteUser` triggers it, or extend
-the function to purge owned rows with the service role.
+Staff erasure is intentionally partial (owned library/programs are retained, only
+the login is removed). Full erasure of a staff member's owned content — reassigning
+or purging it first — is a later, ownership-aware flow.
 </Callout>
