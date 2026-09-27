@@ -16,14 +16,21 @@ sign-off step.
 
 1. Open app → the assigned program shows as a **list of sessions** → a badge marks
    which was completed last (`assignment_sessions.last_completed_at`) → pick the next.
-2. Enter a session → ordered list of exercises.
-3. Per exercise:
+2. Enter a session → a **swipeable carousel**. Swiping cycles through the current
+   exercise's **sets** first (a page-indicator row of **dots** under the exercise
+   name shows which set you're on); once its sets are done, the next swipe moves to
+   the **next exercise**. A synced top selector jumps between exercises, and tapping
+   a dot jumps to that set.
+3. Per set card:
+   - **Thumbnail + video hero** at the top — the cover image, with a play badge
+     that opens the inline video player when the exercise has a video.
    - **See the target** — the prescription snapshot.
-   - **Watch the video** (`url_launcher`).
    - **See last time's actuals** ← the priority feature.
-   - **Enter actuals** — sets / reps / weight / time.
+   - **Enter actuals for that set** — reps / weight / time + **Log set** (fills the
+     dot and auto-advances to the next set); re-open a logged set to **edit** it.
    - **Swap** the exercise (tag-driven suggestions from the same library).
-4. **Mark session complete.**
+4. Swipe past the last exercise → a **completion card**; **Mark session complete**
+   there.
 
 Online-only in v1 (clear banner when disconnected).
 
@@ -81,11 +88,14 @@ logging all pass.
 ## App (`features/training`)
 
 - **Models** (`data/models/active_assignment.dart`) — `ActiveAssignment` →
-  `TrainingAssignmentSession` → `TrainingExercise` (snapshot target + name/video),
+  `TrainingAssignmentSession` → `TrainingExercise` (snapshot target + name/video +
+  thumbnail path),
   and `LoggedEntry`. All read the `assignment_*` / `logged_entries` rows.
 - **`TrainingRepository`** — `loadActiveAssignment`, `lastEntriesFor(exerciseId)`
   (groups the most-recent logging occasion), `logSet` (client logs own,
-  `logged_by = self`), `completeSession`, `swapExercise` (last two via the RPCs).
+  `logged_by = self`; returns the entry id) and `updateSet` (edit an already-logged
+  set — a direct `logged_entries` write, allowed under RLS since it's the client's
+  own row), `completeSession`, `swapExercise` (last two via the RPCs).
 - **Providers** — `activeAssignmentProvider` (the signed-in client's instance),
   `lastEntriesProvider(exerciseId)` (family). Invalidated after complete/swap.
   `activeAssignmentProvider` is a `StreamProvider`: it yields an initial REST
@@ -102,10 +112,24 @@ logging all pass.
   skeleton (`SliverTrainSkeleton`) — a program-name header bar plus `AppCard`-shaped
   session placeholders — so the shape matches the loaded list and doesn't shift on
   the swap to real data.
-- **Session runner** (`SessionRunnerScreen`) — per exercise: name + **swap**,
-  the **Target**, set-type & coach notes, **Watch video** (`url_launcher`), a
-  **LAST TIME** block, today's logged sets, and numeric inputs (reps · weight ·
-  time) with a **Log set** / **Add set** button. Last-time values prefill the
-  inputs (minimal taps); numeric keyboards; a **Mark complete** FAB with a
-  heavy-haptic success. Swap opens the library picker and re-points the snapshot
-  via the RPC.
+- **Session runner** (`SessionRunnerScreen`) — the **exercise frame stays put while
+  only the bottom set-input area slides**: the `PageView` drives just the bottom,
+  whose pages are every **(exercise, set)** pair in order plus a trailing
+  **completion** page, so swiping steps through a set at a time and rolls into the
+  next exercise once the current one's sets are done. The static **top**
+  (thumbnail/name/target/last-time) is rendered outside the pager and cross-fades
+  only when the exercise changes. A synced **top selector** reflects the current
+  exercise (one cell per exercise + a **Finish** cell, tap-to-jump), and a **dots
+  page-indicator** under the name reflects the current set (elongated pill =
+  current, filled = logged, muted = pending; tap a dot to jump to that set). The
+  frame leads with a **thumbnail + video hero** (16:9 cover from the public
+  `exercise-thumbnails` bucket via a direct URL; a play badge opens the video
+  player sheet when a video exists), then name + **swap**, the **Target**, set-type
+  & coach notes, a **LAST TIME** block, and numeric inputs (reps · weight · time)
+  with a **Log set** button that logs that set and auto-advances; re-opening a
+  logged set shows **Save** to edit it (`updateSet`). Last-time values prefill the
+  inputs per set; state persists across swipes (`AutomaticKeepAlive` + a
+  parent-held slot map keyed by `assignment_exercises.id`). The **completion**
+  page's **Mark complete** button ends the session with a heavy-haptic success.
+  Swap re-points the snapshot via the RPC. Legacy assignments made before
+  thumbnails existed render a neutral placeholder.

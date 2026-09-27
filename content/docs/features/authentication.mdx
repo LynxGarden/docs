@@ -37,6 +37,16 @@ seeding). See [the core model](/docs/index#core-model-in-one-paragraph).
 3. A brand-new account isn't linked to a person yet, so `RootShell` shows
    **finish-setup** (redeem an invite) until it is.
 
+### Role-gated shell (no wrong-role flash)
+`RootShell` resolves the user's role (`currentUserProvider`) and picks the shell —
+staff → `StaffShell`, client → `ClientShell`. While that's loading it shows a
+**role-neutral** `ShellSkeleton` (no "New client" action, no staff tabs), so a
+client never glimpses the staff chrome. `AppUser` carries its `authUserId`; if a
+**cached** user from a previous session belongs to a different auth account (an
+account switch mid-reload), `RootShell` treats it as not-yet-loaded and shows the
+skeleton until the correct record arrives. A same-user refetch (e.g. an avatar
+change) keeps the current shell — no skeleton flash — because the id still matches.
+
 ### Password reset
 1. `sendPasswordResetOtp(email)` → **Reset password** email with `{{ .Token }}`.
 2. On `/reset-password`, `verifyRecoveryOtp` (`OtpType.recovery`) opens a

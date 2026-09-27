@@ -1,13 +1,28 @@
 ---
 title: Exercise Library
-description: Coach-owned, tenant-scoped exercise library with tags and link-based video. (CP1)
+description: Coach-owned, tenant-scoped exercise library — card grid with required thumbnails, tags, and hosted/linked video. (CP1)
 ---
 
 Checkpoint **CP1** · App: `features/exercises` · Backend migration: `exercises`.
 
 Each coach builds **their own** library (full CRUD). Every exercise has a custom
-name, a **video** (hosted **or** linked), a description, and **tags** — the tags
-drive search and the tag-driven "swap exercise" in the [daily loop](/docs/features/daily-loop).
+name, a **required thumbnail** (cover image), a **video** (hosted **or** linked),
+a description, and **tags** — the tags drive search and the tag-driven "swap
+exercise" in the [daily loop](/docs/features/daily-loop).
+
+The library screen is a **2-column card grid**: each card shows the thumbnail,
+the name, and the exercise's tags, with a small play badge overlaid on the image
+when the exercise has a video.
+
+## Thumbnail (required)
+
+- Stored as `thumbnail_storage_path` in the **public** Supabase Storage bucket
+  `exercise-thumbnails` (path `{tenant_id}/{file}`; staff-only upload via storage
+  RLS, public read). A public bucket lets the grid render many covers via **direct
+  CDN URLs** (`getPublicUrl`) — fast and cacheable — instead of signing each one.
+- The editor **requires** a thumbnail: Save stays disabled until one is uploaded.
+  The column is nullable at the DB level so **legacy** exercises created before
+  this requirement still load; those render a neutral placeholder in the grid.
 
 ## Video: hosted or linked
 
@@ -33,7 +48,8 @@ drive search and the tag-driven "swap exercise" in the [daily loop](/docs/featur
 | `name` | required |
 | `description` | optional |
 | `video_url` | link-based (v1 default) |
-| `video_storage_path` | reserved for hosted video (later) |
+| `video_storage_path` | hosted video (private `exercise-videos` bucket) |
+| `thumbnail_storage_path` | cover image (public `exercise-thumbnails` bucket); required by the app, nullable in DB for legacy rows |
 
 **`tags`** are faceted by `category` (movement pattern · main muscle group ·
 equipment · tempo, extensible), unique per `(tenant_id, category, label)`.
@@ -41,14 +57,25 @@ equipment · tempo, extensible), unique per `(tenant_id, category, label)`.
 
 ## RLS
 
-Tenant isolation is the first predicate on every policy. Within a tenant,
-exercises are readable/writable per the coach-ownership model (see
-[Security & RLS](/docs/backend/security-and-rls)).
+Tenant isolation is the first predicate on every policy. Within a tenant:
+
+- **Read** — any staff member reads the whole tenant library.
+- **Insert** — a new exercise is always owned by its creator (`owner_id = self`).
+- **Update / delete** — the **creator** (`owner_id = self`) **or** the tenant
+  **`owner`** role (`current_has_role('owner')`). So a coach manages only their
+  own exercises, while the tenant owner can edit or delete **any** exercise. The
+  `exercise_tags` write policy carries the same creator-or-owner rule so "edit any
+  exercise" also covers its tag links.
+
+See [Security & RLS](/docs/backend/security-and-rls).
 
 ## App
 
-- `ExerciseRepository` (repository pattern; explicit column selects).
+- `ExerciseRepository` (repository pattern; explicit column selects). Adds
+  `uploadThumbnail` and `thumbnailPublicUrl` alongside the video helpers.
 - `exercisesProvider` (per-coach), `exerciseTagsProvider`.
-- Library screen: searchable / tag-filterable list.
-- Editor: video field, description, tag chip editor with **find-or-create** tags;
-  delete. Video opens via `url_launcher`.
+- Library screen: searchable / tag-filterable **2-column card grid** (thumbnail ·
+  name · tags), with a grid loading skeleton.
+- Editor: **required thumbnail picker** (16:9 tile, upload-on-pick with preview),
+  video field, description, tag chip editor with **find-or-create** tags; delete.
+  Video opens via `url_launcher`.
