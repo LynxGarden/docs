@@ -1,0 +1,92 @@
+---
+title: Chat
+description: Realtime 1:1 chat between a client and their assigned coach — text + images, typing indicator, and unread badges. (CP6)
+---
+
+App: `features/chat` · Backend: `conversations` + `messages`, a private `chat-images`
+bucket, and realtime.
+
+A client and their **assigned coach** (`users_data.primary_coach_id`) have a
+single private conversation. It's **realtime** (Supabase Postgres changes), shows
+a **typing indicator**, supports **text and image** messages, and surfaces
+**unread badges** on both sides.
+
+## Who can chat
+
+Strictly the two participants: the **client** and their **assigned coach**. The
+coach is the client's `primary_coach_id` — set to the staff member who created the
+client record (and backfilled for existing clients). Other tenant staff **cannot**
+see or open the conversation — RLS scopes every row to
+`client_person_id = me OR coach_person_id = me`.
+
+A client with no assigned coach can't open chat (the screen shows "You don't have
+a coach assigned yet.").
+
+## Where it lives
+
+- **Client** → a dedicated **Chat** tab in the client shell (Train · Progress ·
+  Chat · Settings). A red dot on the tab means an unread message from the coach.
+- **Coach** → from a **client's detail screen**, the chat icon in the nav bar
+  opens the conversation. On the **Clients list**, a red count badge on a client's
+  card means that client has sent unread messages; tapping the card opens the
+  detail screen, and the chat is one tap from there.
+
+## Realtime
+
+The message list subscribes via
+`supabase.from('messages').stream(primaryKey: ['id']).eq('conversation_id', …)`,
+so new messages appear live. `messages` is in the `supabase_realtime` publication;
+RLS still applies, so a stream only ever delivers a participant's own rows.
+
+Badges use the same mechanism on denormalized columns:
+- client badge → `stream().eq('client_person_id', me)` → count unread from the coach;
+- coach badges → `stream().eq('coach_person_id', me)` → unread per client.
+
+`client_person_id` / `coach_person_id` are **denormalized onto `messages`** (filled
+by a trigger from the conversation) precisely so realtime can filter with a single
+`.eq()` — a message is "from the client" when `sender_person_id = client_person_id`.
+
+## Typing indicator
+
+Typing rides a **realtime broadcast** channel (`typing:<conversationId>`), not the
+database — each side broadcasts `{person, typing}` on keystroke (with a 1.5s idle
+"stopped" signal), and the other side shows a "typing…" bubble that auto-clears.
+
+## Images
+
+Image messages upload to a **private `chat-images` bucket** at
+`{conversationId}/{file}`; the message stores the storage `image_path` and the UI
+renders it via a **signed URL** (cached by path). Storage RLS allows read/write
+only to the conversation's participants. Limits: 10 MB, jpeg/png/webp.
+
+## Read receipts & unread
+
+Each message has a `read_at`. Opening a conversation calls
+`mark_conversation_read(conversation_id)` — an RPC that stamps `read_at = now()` on
+every message the caller *received* (i.e. didn't send). Unread counts are simply
+messages with `read_at IS NULL` from the other party. Coach-side per-client counts
+come from `coach_unread_counts()`.
+
+## Session teardown
+
+On **log out** and **delete account**, `SessionService.clear` calls
+`SupabaseClientWrapper.removeAllChannels()` so every chat stream and typing channel
+is torn down, and invalidates the chat providers — no channel keeps delivering the
+previous account's messages on a shared device.
+
+## Backend surface
+
+| Object | Purpose |
+| --- | --- |
+| `conversations` | one row per client (`client_person_id` unique), with `coach_person_id`, `last_message_at` |
+| `messages` | text/image messages; denormalized `client_person_id`/`coach_person_id` for realtime; `read_at` |
+| `get_or_create_conversation(client)` | resolve/create the caller's conversation with a client (coach = client's `primary_coach_id`) |
+| `mark_conversation_read(conversation)` | mark received messages read |
+| `coach_unread_counts()` | per-client unread counts for the calling coach |
+| `chat-images` bucket | private image storage, participant-scoped RLS |
+
+<Callout type="info">
+Chat is between a client with an **account** and their coach. Account-less clients
+can't sign in, so there's no client side to a conversation until they redeem an
+invite ([Clients & invites](/docs/features/clients-and-invites)).
+</Callout>
