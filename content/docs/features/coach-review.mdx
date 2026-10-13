@@ -43,3 +43,19 @@ Providers: `reviewFeedProvider`, `clientCompletedProvider(personId)`,
 `sessionActualsProvider((sessionId, personId))`. Screens: `ReviewScreen` (tab,
 pull-to-refresh), `ClientReviewScreen` (per client), `SessionActualsScreen`
 (drill-in).
+
+## Deep-dive (CP9)
+
+From a client's **Completed sessions**, the insights action opens the
+**deep-dive** (`ClientReviewDetailScreen`) — the client's instance laid out as
+**Program → Phase → Session → Exercise**. Per exercise the coach sees the client's
+**personal best** (best weight / reps / set-volume, computed from `logged_entries`),
+the client's **difficulty rating** (1–5, set by the client in the training detail
+sheet → `exercise_feedback`), and can **like** (`exercise_reactions`) and
+**comment** (`exercise_comments`). Per phase the coach can **reset** it
+(`reset_assignment_phase`), clearing completion so the client restarts.
+
+Coach comments/likes notify the client and client ratings notify the coach via the
+[notifications](/docs/features/notifications) feed (DB triggers). Data layer:
+`FeedbackRepository` + `clientReviewDataProvider` / `personalBestProvider` /
+`exerciseCommentsProvider`. Backend: migrations `review_feedback`, `notifications`.

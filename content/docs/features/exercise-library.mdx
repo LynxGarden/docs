@@ -1,18 +1,46 @@
 ---
 title: Exercise Library
-description: Coach-owned, tenant-scoped exercise library — card grid with required thumbnails, tags, and hosted/linked video. (CP1)
+description: Coach-owned, tenant-scoped exercise library — list/grid, required movement classification, config-driven logging metrics, tags, and hosted/linked video. (CP1 · CP6)
 ---
 
-Checkpoint **CP1** · App: `features/exercises` · Backend migration: `exercises`.
+Checkpoint **CP1** (+ **CP6** expansion) · App: `features/exercises` · Backend
+migrations: `exercises`, `exercise_movement_metrics`.
 
 Each coach builds **their own** library (full CRUD). Every exercise has a custom
-name, a **required thumbnail** (cover image), a **video** (hosted **or** linked),
-a description, and **tags** — the tags drive search and the tag-driven "swap
-exercise" in the [daily loop](/docs/features/daily-loop).
+name, a **required thumbnail** (cover image), a **required movement
+classification**, a **config-driven logging schema**, a **video** (hosted **or**
+linked), a description, and **tags** — tags + movement drive search/filter and the
+tag-driven "swap exercise" in the [daily loop](/docs/features/daily-loop).
 
-The library screen is a **2-column card grid**: each card shows the thumbnail,
-the name, and the exercise's tags, with a small play badge overlaid on the image
-when the exercise has a video.
+The library screen offers a **list/grid toggle** (persisted per screen). Grid is a
+responsive card grid (thumbnail · name · movement/tags); list is a compact row
+layout. Both are searchable and faceted by tag **and movement**.
+
+## Movement (required)
+
+`exercises.movements` is a required (app-enforced ≥1), multi-valued classification
+over the enum `movement_type`: **Strength, Hypertrophy, Power, Plyometric, Cardio,
+Mobility, Rehab, Warm-up**. Coach-visible only; GIN-indexed; drives the library
+filter facet. The column defaults to empty in DB (legacy rows), so the editor
+requires the coach to pick ≥1 on next save.
+
+## Config-driven logging metrics
+
+`exercises.metric_schema` (jsonb) is a per-exercise list of logging fields, so the
+library covers **any** exercise — running logs pace/time/incline, bench logs
+reps/weight, etc. Each field:
+
+```json
+{ "key": "pace", "label": "Pace", "type": "decimal", "unit": "min/km" }
+```
+
+`type` ∈ `number | decimal | duration | text | enum`; `unit` is free text; an
+optional `enumKind` (`rm | rpe | rir`) adds intensity-unit semantics. The client
+runner renders this schema dynamically; logged actuals land in
+`logged_entries.data` (jsonb, keyed by field key). An empty schema falls back to
+the legacy reps/weight inputs. The schema is snapshotted onto
+`assignment_exercises.metric_schema` so the client loop (which can't read
+`exercises`) can render the form.
 
 ## Thumbnail (required)
 
@@ -50,6 +78,8 @@ when the exercise has a video.
 | `video_url` | link-based (v1 default) |
 | `video_storage_path` | hosted video (private `exercise-videos` bucket) |
 | `thumbnail_storage_path` | cover image (public `exercise-thumbnails` bucket); required by the app, nullable in DB for legacy rows |
+| `movements` | `movement_type[]`; required (≥1) classification, coach-visible |
+| `metric_schema` | jsonb; config-driven logging fields |
 
 **`tags`** are faceted by `category` (movement pattern · main muscle group ·
 equipment · tempo, extensible), unique per `(tenant_id, category, label)`.
@@ -74,8 +104,9 @@ See [Security & RLS](/docs/backend/security-and-rls).
 - `ExerciseRepository` (repository pattern; explicit column selects). Adds
   `uploadThumbnail` and `thumbnailPublicUrl` alongside the video helpers.
 - `exercisesProvider` (per-coach), `exerciseTagsProvider`.
-- Library screen: searchable / tag-filterable **2-column card grid** (thumbnail ·
-  name · tags), with a grid loading skeleton.
-- Editor: **required thumbnail picker** (16:9 tile, upload-on-pick with preview),
-  video field, description, tag chip editor with **find-or-create** tags; delete.
-  Video opens via `url_launcher`.
+- Library screen: searchable / tag- & movement-filterable, **list/grid toggle**
+  (`viewModeProvider('exercises')`), with a loading skeleton. Reached as a pushed
+  page from the **Programs** tab's "All exercises" action (`ExerciseLibraryScreen(pushed: true)`).
+- Editor: **required thumbnail picker**, **required movement multi-select**, a
+  **logging-fields (metric schema) builder**, video field, description, tag chip
+  editor with **find-or-create** tags; delete. Video opens via `url_launcher`.

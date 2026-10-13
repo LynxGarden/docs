@@ -1,0 +1,30 @@
+---
+title: Progress
+description: Client progress — streaks, personal bests, volume and per-exercise graphs. (CP7)
+---
+
+Checkpoint **CP7** · App: `features/progress` · Backend: none new (aggregates the
+existing `logged_entries` + `assignment_exercises`, client-readable under RLS).
+
+The client **Progress** tab turns their logged history into feedback:
+
+- **Streak / visits** — distinct training days in the current week, plus a
+  consecutive-active-weeks streak.
+- **Personal bests** (per exercise) — best weight, best reps, best single-set
+  volume (reps × weight).
+- **Volume** — per-session volume = Σ(reps × weight); shown as a weekly series.
+- **Graph** — an `fl_chart` line chart of weekly volume / top weight over time, with
+  a Volume ⇄ Best-weight toggle. Fully theme-driven (light + dark).
+
+## Data
+
+No new tables. Aggregation is **client-side** in `ProgressRepository` over the
+client's own `logged_entries` (reps/weight/time/`data`, keyed on `exercise_id`). The
+tracked-exercise picker lists distinct `(exercise_id, exercise_name)` from the
+client's `assignment_exercises` snapshots (clients can't read the `exercises` table).
+
+## App
+
+`ProgressScreen` (tab root) with stat tiles, PB tiles, exercise picker and the
+chart; layout-matching skeleton; empty states. `progressSummaryProvider` +
+`trackedExercisesProvider` + a per-exercise series provider.

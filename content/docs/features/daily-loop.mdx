@@ -21,13 +21,16 @@ sign-off step.
    name shows which set you're on); once its sets are done, the next swipe moves to
    the **next exercise**. A synced top selector jumps between exercises, and tapping
    a dot jumps to that set.
-3. Per set card:
-   - **Thumbnail + video hero** at the top — the cover image, with a play badge
-     that opens the inline video player when the exercise has a video.
-   - **See the target** — the prescription snapshot.
+3. Per set card (redesigned in CP6/CP7):
+   - **Top row** — a small thumbnail (top-left) + the exercise **title** and
+     **subtitle** (target summary), a **method badge** (superset / EMOM / … when
+     not a straight set), and an info affordance opening the **exercise detail
+     sheet** (description · video · a start/stop/reset **timer** · the client's
+     **global notes** for that exercise · a 1–5 **difficulty rating**).
    - **See last time's actuals** ← the priority feature.
-   - **Enter actuals for that set** — reps / weight / time + **Log set** (fills the
-     dot and auto-advances to the next set); re-open a logged set to **edit** it.
+   - **Enter actuals** via the exercise's **config-driven metric form** (the fields
+     the coach defined in `metric_schema`; falls back to reps/weight) + **Log set**
+     (fills the dot and auto-advances); re-open a logged set to **edit** it.
    - **Swap** the exercise (tag-driven suggestions from the same library).
 4. Swipe past the last exercise → a **completion card**; **Mark session complete**
    there.
@@ -54,8 +57,8 @@ create index logged_entries_last_time_idx
 | `exercise_id` | for the "last time" lookup (kept stable across swaps) |
 | `assignment_exercise_id` | the log's context (nullable) |
 | `entry_type` | default `strength_set` (extensible) |
-| `set_index`, `reps`, `weight`, `time_seconds` | actuals |
-| `data` | jsonb — future entry types |
+| `set_index`, `reps`, `weight`, `time_seconds` | legacy actuals (kept for last-time / review) |
+| `data` | jsonb — the config-driven metric values, keyed by `metric_schema` field key |
 | `logged_by` | who logged it (client, or staff on-behalf) |
 | `logged_at` | timestamp; drives "last time" ordering |
 
@@ -112,24 +115,17 @@ logging all pass.
   skeleton (`SliverTrainSkeleton`) — a program-name header bar plus `AppCard`-shaped
   session placeholders — so the shape matches the loaded list and doesn't shift on
   the swap to real data.
-- **Session runner** (`SessionRunnerScreen`) — the **exercise frame stays put while
-  only the bottom set-input area slides**: the `PageView` drives just the bottom,
-  whose pages are every **(exercise, set)** pair in order plus a trailing
-  **completion** page, so swiping steps through a set at a time and rolls into the
-  next exercise once the current one's sets are done. The static **top**
-  (thumbnail/name/target/last-time) is rendered outside the pager and cross-fades
-  only when the exercise changes. A synced **top selector** reflects the current
-  exercise (one cell per exercise + a **Finish** cell, tap-to-jump), and a **dots
-  page-indicator** under the name reflects the current set (elongated pill =
-  current, filled = logged, muted = pending; tap a dot to jump to that set). The
-  frame leads with a **thumbnail + video hero** (16:9 cover from the public
-  `exercise-thumbnails` bucket via a direct URL; a play badge opens the video
-  player sheet when a video exists), then name + **swap**, the **Target**, set-type
-  & coach notes, a **LAST TIME** block, and numeric inputs (reps · weight · time)
-  with a **Log set** button that logs that set and auto-advances; re-opening a
-  logged set shows **Save** to edit it (`updateSet`). Last-time values prefill the
-  inputs per set; state persists across swipes (`AutomaticKeepAlive` + a
-  parent-held slot map keyed by `assignment_exercises.id`). The **completion**
-  page's **Mark complete** button ends the session with a heavy-haptic success.
-  Swap re-points the snapshot via the RPC. Legacy assignments made before
-  thumbnails existed render a neutral placeholder.
+- **Session runner** (`SessionRunnerScreen`) — a per-(exercise, set) `PageView` plus
+  a trailing **completion** page, with a synced top exercise selector and a set-dots
+  indicator. Each card has a compact **top row** (small thumbnail · title · target
+  subtitle · method badge · detail affordance) and, below, the exercise's
+  **config-driven metric form** (`MetricFormRenderer` over `metric_schema`; falls
+  back to reps/weight), a **LAST TIME** block (values prefill per set), and a **Log
+  set**/**Save** button. Logging writes the `values` map to `logged_entries.data`
+  plus derived `reps`/`weight`/`time_seconds` for last-time + review. Grouped
+  (superset/MDS/contrast/ramp) exercises render as one block; interval methods
+  (EMOM/E2MOM/E3MOM) surface an in-card timer. The **exercise detail sheet**
+  (`showExerciseDetailSheet`) adds description · video · a stopwatch timer · global
+  per-exercise notes (`exercise_notes`) · a 1–5 difficulty rating
+  (`exercise_feedback`). The **Train** screen also shows the training **description**
+  (snapshotted onto the assignment). Swap re-points the snapshot via the RPC.

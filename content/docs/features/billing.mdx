@@ -1,0 +1,21 @@
+---
+title: Billing
+description: Settings → Billing — the client's previous invoices (mock data in v1). (CP9)
+---
+
+Checkpoint **CP9** · App: `features/settings` (billing) · Backend migration:
+`billing`.
+
+A simple billing-history screen under **Settings → Billing** listing the client's
+invoices (description, amount, status, paid/issued date) with a total-paid header.
+**Mock in v1** — not a billing engine; real payment integration comes later.
+
+## Data
+
+`invoices` (`person_id`, `amount_cents`, `currency`, `description`, `status`
+paid/pending/void, `issued_at`, `paid_at`). RLS: the person reads their own; staff
+read the tenant's. Seeded with sample monthly "Membership" invoices for
+account-holders so the screen has data.
+
+`BillingRepository.listForPerson` + `invoicesProvider`; `BillingScreen` (pushed from
+the Settings Billing row).

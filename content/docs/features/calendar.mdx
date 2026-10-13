@@ -1,0 +1,43 @@
+---
+title: Calendar & Health
+description: Realtime slot booking, finished trainings, health logging and reminders, with native Health / Strava / device-calendar sync. (CP8)
+---
+
+Checkpoint **CP8** · App: `features/calendar` + `core/integrations` · Backend
+migrations: `bookings`, `booking_rpcs`, `health_logs`.
+
+The client **Calendar** tab has three segments:
+
+## Book (realtime)
+
+1-hour slots **06:00–22:00**, **current week only**, **max 10 per slot**, **one
+booking per client per day**, cancellable **up to 2h before**. Each slot shows the
+**remaining places** (never who booked) and updates live as others book/cancel
+(realtime on `bookings`). Booking also **auto-assigns the client's next uncompleted
+session** in their current phase and records the assigned coach.
+
+- `book_training(slot_start)` / `cancel_booking(booking)` are SECURITY DEFINER RPCs
+  that enforce every rule server-side; the table is read-only (tenant-wide) for live
+  capacity. A coach can `reset_assignment_phase(assignment_phase)` to restart a
+  client's phase.
+- "Add to calendar" pushes a booking to the device calendar (`device_calendar`).
+
+## Activity (health + reminders)
+
+In-app logging of **sleep / meal / activity / weight / water** (`health_logs`,
+special-category per GDPR), plus **import** from Apple Health / Google Fit
+(`health`) and **Strava** (OAuth). **Reminders** (`reminders`) schedule local
+notifications (`flutter_local_notifications`) for weight/water etc.
+
+## History
+
+The client's finished trainings (completed sessions).
+
+## Native integrations (`core/integrations`)
+
+`HealthSyncService`, `StravaService`, `DeviceCalendarService`,
+`LocalNotificationsService` — all guarded so the app degrades gracefully when a
+capability is unavailable. Platform permissions: iOS HealthKit entitlement +
+`NSHealth*`/`NSCalendars*` usage strings; Android Health Connect queries,
+calendar + `POST_NOTIFICATIONS` permissions, `FlutterFragmentActivity`, minSdk 26.
+Strava needs `STRAVA_CLIENT_ID/SECRET/REDIRECT_URI` env + the deep-link redirect.

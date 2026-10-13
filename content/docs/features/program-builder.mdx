@@ -1,21 +1,27 @@
 ---
 title: Program Builder
-description: Programs are menus of ordered sessions with per-exercise prescriptions. (CP2)
+description: Programs → phases → sessions → exercises, with structured training methods and config-driven metrics. (CP2 · CP6)
 ---
 
-Checkpoint **CP2** · App: `features/programs` · Backend migration: `program_builder`.
+Checkpoint **CP2** (+ **CP6** expansion) · App: `features/programs` · Backend
+migrations: `program_builder`, `phases`, `training_methods`,
+`assign_and_duplicate_rpcs`.
 
-A **program** is an ordered set of **sessions** (A1, A2, B1…). **No calendar, no
-scheduled dates** — sessions are a menu the client picks from. A **session** is
-an ordered list of exercises, each with a **prescription** set at build time.
+A **program** is an ordered set of **phases** (e.g. "Phase 1", "Deload"); each
+phase holds an ordered set of **sessions** (A1, A2, B1…); each session is an
+ordered list of exercises, each with a **prescription** and a **training method**.
+**No calendar, no scheduled dates** — sessions are a menu the client picks from.
 Programs are saved as reusable **templates**.
+
+**Hierarchy:** Program → Phase → Session → SessionExercise.
 
 ## Data
 
-Tables: `programs`, `sessions`, `session_exercises`. All carry `tenant_id` and an
-`owner_id`/program owner; ordering is via `order_index`.
+Tables: `programs`, `phases`, `sessions`, `session_exercises`. All carry
+`tenant_id`; ordering is via `order_index`. `sessions` carries both `program_id`
+(unchanged RLS) and `phase_id`.
 
-**`session_exercises`** holds the prescription per exercise:
+**`session_exercises`** holds the prescription + method per exercise:
 
 | Field | |
 | --- | --- |
@@ -23,27 +29,47 @@ Tables: `programs`, `sessions`, `session_exercises`. All carry `tenant_id` and a
 | `reps` | text (e.g. `8-10`, `AMRAP`) |
 | `weight` | text |
 | `load_intensity` | text |
-| `rpe` | text |
+| `rpe` / `rir` | text (RPE and Reps-In-Reserve) |
 | `time_seconds` | int |
 | `tempo` | text |
 | `rest_seconds` | int |
-| `set_type_note` | free-text (superset, dropset, EMOM… in v1) |
+| `method` | enum — the training method (see below) |
+| `method_group_id` | links 2+ exercises into one block (superset/MDS/contrast/ramp) |
+| `group_order` | order within a method group |
+| `method_config` | jsonb — interval length, fixed pauses, per-series prefills |
+| `week_label` | **coach-only** periodization tag (never shown to the client) |
 | `coach_note` | free-text |
 
-<Callout>
-Set **types** (superset, dropset, AMRAP, EMOM…) are **free-text** instructions in
-v1, not structured objects.
-</Callout>
+### Training methods
+
+`method` is structured (not free text). Picking a method **prefills** sensible
+series/reps/pauses from the Lynx "Metode treniranja" table (editable after):
+`straight, superset, dropset, mechanical_dropset, myo, myo_match, emom, e2mom,
+e3mom, rest_pause, ramp, back_off, cluster, contrast, tempo`. Group methods
+(superset, mechanical dropset, contrast, ramp) are built from 2+ exercises sharing
+a `method_group_id`; interval methods (EMOM/E2MOM/E3MOM) store `interval_seconds`
+in `method_config`.
+
+### Config-driven metrics
+
+Each library exercise defines its own logging fields (`exercises.metric_schema`) —
+so running logs pace/time/incline while bench logs reps/weight. See the
+[exercise library](/docs/features/exercise-library).
 
 ## RLS
 
-`owns_program()` gates writes; tenant isolation first. See
+`owns_program()` gates writes on `programs`/`phases`/`sessions`/`session_exercises`;
+tenant isolation first. Deep-copy RPCs `duplicate_program`, `duplicate_phase`,
+`duplicate_session` run SECURITY DEFINER, authorized via `owns_program`. See
 [Security & RLS](/docs/backend/security-and-rls).
 
 ## App
 
-- `ProgramRepository` + provider; program list.
-- Program editor: add sessions (add / rename / reorder).
-- Session editor: add exercise via the [library](/docs/features/exercise-library)
-  picker → prescription sheet; edit / remove / reorder. Reorder = `order_index`
-  updates. Reached from a **Programs** action in the Library tab.
+- **Programs** is a top-level staff tab (list/grid toggle, drag-reorder,
+  duplicate). "All exercises" from its top-right action opens the
+  [library](/docs/features/exercise-library).
+- Program editor: manage **phases** (add/rename/duplicate/delete/reorder); each
+  phase holds its sessions. A design-system action sheet replaces the old popup
+  menu — per session: **Edit · Rename · Duplicate · Delete**.
+- Session editor: pick a **method**, add exercises (grouped for superset-style
+  methods), set the prescription (incl. RIR + week tag) via the prescription sheet.
