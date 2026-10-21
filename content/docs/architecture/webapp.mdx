@@ -63,5 +63,13 @@ hosted project (`afrqrnipjrnwnwxrfjvx`) — the typed `Database` is threaded thr
 **Phase 0 (foundation) shipped:** scaffold, shared Supabase client + generated
 types, auth + staff gate, light/dark tokens, EN/SL i18n, the app shell
 (sidebar / mobile drawer, theme + language toggles), and placeholder routes for
-every section. Phase 1 ports the coach features over the existing backend; later
-phases add the CRM, Payments, and the event log.
+every section.
+
+**Phase 1 (coach port) — in progress.** **Clients** shipped: the tenant client
+list (`users_data` + `person_roles` where role = `client`, with search and the
+account-linked / lifecycle-stage badges), a client detail page, and the
+account-less **New client** flow (person + client role insert) — all over the
+existing backend, no schema changes. Still to port: exercise library, program
+builder + assign, groups, review, chat, bookings, and the client-detail sections
+(care team, health flags, assigned programs, completed sessions). Later phases add
+the CRM, Payments, and the event log.
