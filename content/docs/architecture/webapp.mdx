@@ -1,0 +1,67 @@
+---
+title: Web App (Coach & Admin)
+description: Lynx-webapp — the React coach/admin dashboard, scaffolded from the Calda React starter and pointed at the shared Supabase backend.
+---
+
+`Lynx-webapp` is the **coach & admin dashboard** on the web — a role-gated port of
+the Flutter app's **staff** surface, plus web-only features (CRM, Payments,
+Notifications). Clients stay on the mobile app; this is for coaches and admins. It
+talks to the **same Supabase project** as the Flutter app, so auth and data are
+shared.
+
+## Stack
+
+**Turborepo** monorepo (from the `react-vite-shadcn-starter`). **React 19 + Vite +
+React Router 7 + TanStack Query + shadcn/ui (Tailwind v4) + Supabase JS.** Hosted on
+**Vercel**. Biome lints, Lefthook gates, Vitest + MSW for tests.
+
+A **single app** (`apps/app`) serves both coach and admin — admin is a role-gated
+superset, not a separate build. Shared packages: `@lynx/ui` (shadcn primitives +
+theme), `@lynx/auth` (Supabase auth adapter), `@lynx/supabase` (typed client + env),
+`@lynx/types`.
+
+## Layers
+
+```
+apps/app/src/
+├── features/<name>/   api · components · hooks · routes · schemas · types.ts
+├── components/        shared shell (sidebar, toggles, protected-route, …)
+├── layouts/           AppLayout (sidebar + top bar)
+├── stores/            Zustand (theme)
+├── i18n/              i18next (EN + SL)
+├── lib/routes.ts      the ROUTES constant
+├── router.tsx         public auth routes + protected shell
+└── app.tsx            providers
+```
+
+## Auth, roles & the gate
+
+Auth is shared Supabase (email + password; SSO gated off). The spine is the same:
+a signed-in `auth.users` row resolves to a **`users_data`** person and its
+**`person_roles`**. A `useCurrentUser` query (the "me") exposes `personId`,
+`tenantId`, `roles`, `isStaff`, `isAdmin`. `ProtectedRoute` gates the shell to
+**staff** (`owner`/`coach`/`physio`); a non-staff or unlinked account hits a
+"coaches only" screen. Admin-only nav (e.g. Payments) is filtered by `isAdmin`. All
+queries are tenant-scoped; RLS enforces it server-side.
+
+## Design system
+
+Ported 1:1 from the Flutter theme and driven through semantic tokens so light/dark
+flips cleanly: forest `#004225` on cream `#F5F1E8` (light), deep-forest (dark);
+Bricolage Grotesque + Inter; elevation-0 cards with a forest-tinted double shadow +
+hairline. Theme toggle (light/dark/system, persisted) adds `.dark` to `<html>`.
+**i18n:** EN + SL via i18next; a language switcher lives in the top bar.
+
+## Backend types
+
+`npm run db:types` regenerates `packages/supabase/src/database.types.ts` from the
+hosted project (`afrqrnipjrnwnwxrfjvx`) — the typed `Database` is threaded through
+`createClient<Database>`, so every table and RPC is typed.
+
+## Status
+
+**Phase 0 (foundation) shipped:** scaffold, shared Supabase client + generated
+types, auth + staff gate, light/dark tokens, EN/SL i18n, the app shell
+(sidebar / mobile drawer, theme + language toggles), and placeholder routes for
+every section. Phase 1 ports the coach features over the existing backend; later
+phases add the CRM, Payments, and the event log.
