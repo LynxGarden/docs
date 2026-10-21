@@ -5,7 +5,7 @@ description: Programs → phases → sessions → exercises, with structured tra
 
 Checkpoint **CP2** (+ **CP6** expansion) · App: `features/programs` · Backend
 migrations: `program_builder`, `phases`, `training_methods`,
-`assign_and_duplicate_rpcs`.
+`assign_and_duplicate_rpcs`, `metric_targets_and_none_method`.
 
 A **program** is an ordered set of **phases** (e.g. "Phase 1", "Deload"); each
 phase holds an ordered set of **sessions** (A1, A2, B1…); each session is an
@@ -37,18 +37,28 @@ Tables: `programs`, `phases`, `sessions`, `session_exercises`. All carry
 | `method_group_id` | links 2+ exercises into one block (superset/MDS/contrast/ramp) |
 | `group_order` | order within a method group |
 | `method_config` | jsonb — interval length, fixed pauses, per-series prefills |
+| `target_metrics` | jsonb — per-metric prescribed targets keyed by metric-field key (method = `none`) |
 | `week_label` | **coach-only** periodization tag (never shown to the client) |
 | `coach_note` | free-text |
 
 ### Training methods
 
-`method` is structured (not free text). Picking a method **prefills** sensible
-series/reps/pauses from the Lynx "Metode treniranja" table (editable after):
-`straight, superset, dropset, mechanical_dropset, myo, myo_match, emom, e2mom,
-e3mom, rest_pause, ramp, back_off, cluster, contrast, tempo`. Group methods
+`method` is structured (not free text), and the add flow is **method-first**: the
+coach picks the method *before* the exercise, from a picker sheet that shows each
+method's one-line description from the Lynx "Metode treniranja" spec. Picking a
+method **prefills** sensible series/reps/pauses (editable after):
+`none, straight, superset, dropset, mechanical_dropset, myo, myo_match, emom,
+e2mom, e3mom, rest_pause, ramp, back_off, cluster, contrast, tempo`. Group methods
 (superset, mechanical dropset, contrast, ramp) are built from 2+ exercises sharing
 a `method_group_id`; interval methods (EMOM/E2MOM/E3MOM) store `interval_seconds`
 in `method_config`.
+
+**`none` (No method)** is the schema-driven case: the fixed strength grid
+(sets/reps/weight/RPE…) is hidden and the prescription form renders the
+exercise's own `metric_schema` fields instead (e.g. a cardio exercise shows only
+*pace* + *duration*). Those prescribed targets are stored in `target_metrics`,
+keyed by metric-field key, and summarized on the card/runner (e.g. `5:00 · 30:00`)
+instead of the `4×8-12 @ RPE 7` strength summary.
 
 ### Config-driven metrics
 
@@ -65,11 +75,20 @@ tenant isolation first. Deep-copy RPCs `duplicate_program`, `duplicate_phase`,
 
 ## App
 
-- **Programs** is a top-level staff tab (list/grid toggle, drag-reorder,
+- **Programs** is a top-level staff tab (list view, drag-reorder,
   duplicate). "All exercises" from its top-right action opens the
   [library](/docs/features/exercise-library).
 - Program editor: manage **phases** (add/rename/duplicate/delete/reorder); each
   phase holds its sessions. A design-system action sheet replaces the old popup
   menu — per session: **Edit · Rename · Duplicate · Delete**.
-- Session editor: pick a **method**, add exercises (grouped for superset-style
-  methods), set the prescription (incl. RIR + week tag) via the prescription sheet.
+- Session editor — **method-first add flow**: *Add exercise* opens the
+  **method picker** (`showMethodPicker`, every method with its spec description) →
+  then the **exercise picker** → then the **prescription sheet**, already
+  prefilled from `methodDefaults` (sets, rep scheme, pauses, interval config) and
+  headed by a locked method banner (name + description) so the coach mostly just
+  sets the weight. Group methods (superset/MDS/contrast/ramp) loop the
+  picker+sheet from the very first exercise until the coach cancels. Editing an
+  existing exercise still allows changing its method. Choosing **No method**
+  swaps the strength grid for the exercise's own metric fields (schema-driven
+  targets). Prescription summaries render as `4×8-12 · 100kg @ RPE 7 ·
+  Tempo: 3-1-0-1` (volume first, `@` before intensity, labeled tempo).

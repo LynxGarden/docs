@@ -55,7 +55,8 @@ Those are exposed as definer RPCs that re-check authorization internally:
 | --- | --- | --- |
 | `assign_template(program, person, name?)` | writes `assignment_*` | staff-in-tenant |
 | `redeem_invite(code)` | new signup has no person/tenant yet | valid pending invite |
-| `complete_session(assignment_session)` | client can't write `assignment_sessions` | owns-the-assignment OR staff |
+| `complete_session(assignment_session, rating?)` | client can't write `assignment_sessions` | owns-the-assignment OR staff |
+| ↳ `p_rating smallint default null` (1–10 session difficulty from the app's finish-card smiley slider) stamps `assignment_sessions.last_rating` alongside `last_completed_at`; older app builds calling without it keep working (`20261021120000_session_rating`) | | |
 | `swap_assignment_exercise(ae, new_exercise)` | client can't write `assignment_exercises` | owns-the-assignment OR staff |
 
 ## Health data — GDPR (special category)

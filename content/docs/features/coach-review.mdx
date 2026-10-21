@@ -49,11 +49,17 @@ pull-to-refresh), `ClientReviewScreen` (per client), `SessionActualsScreen`
 From a client's **Completed sessions**, the insights action opens the
 **deep-dive** (`ClientReviewDetailScreen`) — the client's instance laid out as
 **Program → Phase → Session → Exercise**. Per exercise the coach sees the client's
-**personal best** (best weight / reps / set-volume, computed from `logged_entries`),
-the client's **difficulty rating** (1–5, set by the client in the training detail
+**personal best** (best weight / reps / best-day volume — Σ reps × weight across
+all sets of the best day, computed from `logged_entries`), the client's
+**difficulty rating** (1–5, set by the client in the training detail
 sheet → `exercise_feedback`), and can **like** (`exercise_reactions`) and
 **comment** (`exercise_comments`). Per phase the coach can **reset** it
 (`reset_assignment_phase`), clearing completion so the client restarts.
+
+The session actuals drill-in (`SessionActualsScreen`) also opens with a **session
+difficulty banner** — the client's 1–10 rating from the runner's finish-card
+smiley slider (`assignment_sessions.last_rating`, written by `complete_session`;
+hidden when the session was never rated).
 
 Coach comments/likes notify the client and client ratings notify the coach via the
 [notifications](/docs/features/notifications) feed (DB triggers). Data layer:

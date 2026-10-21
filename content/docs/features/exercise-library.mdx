@@ -34,8 +34,12 @@ reps/weight, etc. Each field:
 { "key": "pace", "label": "Pace", "type": "decimal", "unit": "min/km" }
 ```
 
-`type` ∈ `number | decimal | duration | text | enum`; `unit` is free text; an
-optional `enumKind` (`rm | rpe | rir`) adds intensity-unit semantics. The client
+`type` ∈ `number | decimal | duration | text | enum`; `unit` is free text. A
+legacy optional `enumKind` (`rm | rpe | rir`) adds intensity-unit semantics —
+the editor **no longer offers** the RM/RPE/RIR intensity chooser when creating
+or editing a field (intensity lives in the prescription, not the exercise);
+existing fields keep their stored tag and it still renders as the input suffix
+in the runner. The client
 runner renders this schema dynamically; logged actuals land in
 `logged_entries.data` (jsonb, keyed by field key). An empty schema falls back to
 the legacy reps/weight inputs. The schema is snapshotted onto

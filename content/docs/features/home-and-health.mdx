@@ -1,0 +1,58 @@
+---
+title: Home & Health
+description: The client Home tab — next session, KPIs, Apple Health / Strava steps, calories and heart-rate graphs.
+---
+
+App: `features/home` + `core/integrations` · Backend: none new (reuses
+`health_logs`, `assignment_sessions`, `logged_entries`).
+
+The **Home** tab replaces the old Train tab as the client's landing screen. The
+session runner is opened from here — via the next-session card or the sessions
+list — so training is always one tap away, surrounded by the day's numbers.
+
+## Layout
+
+1. **Next session card** — the first never-completed session of the active
+   assignment; when every session has been completed it falls back to the one
+   trained **longest ago**, so a finished program keeps cycling (with an
+   "all sessions done" note). Tapping it opens the
+   [session runner](/docs/features/daily-loop).
+2. **KPI tiles** — steps today, active kcal today, visits this week, and the
+   week streak (the last two from `progressSummaryProvider`).
+3. **Health & activity** — a steps **last-7-days bar chart** and a **heart-rate
+   today line chart** (15-minute bucket averages), plus a **See more** link to
+   the health detail screen. Both charts are theme-driven `fl_chart` widgets.
+4. **Sessions** — the full session menu of the active assignment (completed
+   sessions get a check), each opening the runner.
+
+<Callout type="info">
+The Home graphs and KPI step/kcal numbers are read **live** from Apple Health /
+Google Fit via `HealthSyncService` (`health` plugin) — they are *not* read from
+the database. Reads are guarded, so a device without a provider (or without
+permission) degrades to an empty state with a prompt to sync.
+</Callout>
+
+## Health detail — "See more" (`HealthActivityScreen`)
+
+The Apple Health and Strava **sync buttons moved here from the Calendar tab**.
+The screen shows mini stats (steps today, active kcal), the two charts at full
+size, and the imported `health_logs` list.
+
+## Import behavior (aggregated + idempotent)
+
+Apple Health returns steps as hundreds of small interval samples per day;
+importing them 1:1 used to create 200+ rows per day. `HealthSyncService` now
+**aggregates before persisting**:
+
+- **Steps, active kcal, water, sleep** — summed into **one row per day**,
+  stamped at local **noon** so daily rows sort stably.
+- **Weight** — the day's **last reading** only.
+- **Workouts** — imported individually, but only **major** ones
+  (≥ 10 minutes); the activity type is kept in `data.name`.
+- **Heart rate** — never persisted; it's only read live for the chart.
+
+Re-syncs are **idempotent**: `HealthRepository.replaceImported` deletes the
+prior rows of that **source** (`apple_health` / `google_fit` / `strava`) inside
+the import window before inserting the fresh batch. Manual logs
+(`source = manual`) are never touched. The Strava import uses the same
+replace-window path.

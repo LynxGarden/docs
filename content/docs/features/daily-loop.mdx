@@ -4,7 +4,7 @@ description: The client trains in the gym — pick a session, see target · vide
 ---
 
 Checkpoint **CP4** — the single most important slice · App: `features/training`
-(client shell **Train** tab) · Backend migration: `logging` (**CP-B4**).
+(opened from the client **Home** tab) · Backend migration: `logging` (**CP-B4**).
 
 <Callout type="info">
 **Status:** Backend (CP-B4) **done & verified**; the app Train tab is **built**
@@ -14,26 +14,41 @@ sign-off step.
 
 ## The flow
 
-1. Open app → the assigned program shows as a **list of sessions** → a badge marks
-   which was completed last (`assignment_sessions.last_completed_at`) → pick the next.
+1. Open app → the [Home tab](/docs/features/home-and-health) shows the **next
+   session** card plus the full session menu (a check marks completed sessions,
+   from `assignment_sessions.last_completed_at`) → pick one.
 2. Enter a session → a **swipeable carousel**. Swiping cycles through the current
    exercise's **sets** first (a page-indicator row of **dots** under the exercise
    name shows which set you're on); once its sets are done, the next swipe moves to
    the **next exercise**. A synced top selector jumps between exercises, and tapping
-   a dot jumps to that set.
+   a dot jumps to that set. **Swiping away from a set auto-saves** any
+   typed-but-unlogged input (silently — no toast, no auto-advance), and dismisses
+   the keyboard.
 3. Per set card (redesigned in CP6/CP7):
+   - **Method banner** — when the exercise isn't a straight set, a full-width
+     indicator at the very top of the card names the training method (and the
+     exercise's position inside its group, e.g. `Superset · 1/2`).
    - **Top row** — a small thumbnail (top-left) + the exercise **title** and
-     **subtitle** (target summary), a **method badge** (superset / EMOM / … when
-     not a straight set), and an info affordance opening the **exercise detail
-     sheet** (description · video · a start/stop/reset **timer** · the client's
+     **subtitle** (target summary — formatted
+     `4×12 · 60kg @ RPE 8 · Tempo: 3-1-0-1 · rest 120s`: volume parts first,
+     then `@` before the RPE/RIR intensity, tempo with an explicit `Tempo:`
+     prefix), and an info affordance opening the **exercise detail sheet**
+     (description · video · a start/stop/reset **timer** · the client's
      **global notes** for that exercise · a 1–5 **difficulty rating**).
    - **See last time's actuals** ← the priority feature.
    - **Enter actuals** via the exercise's **config-driven metric form** (the fields
      the coach defined in `metric_schema`; falls back to reps/weight) + **Log set**
      (fills the dot and auto-advances); re-open a logged set to **edit** it.
+   - **Rest timer** — when the prescription has a pause, the card shows
+     `Rest: {n} s` with a **Start timer** button; the countdown runs **top-right
+     in the nav bar** (tap to cancel, heavy haptic at zero), so it survives
+     swiping between sets.
    - **Swap** the exercise (tag-driven suggestions from the same library).
-4. Swipe past the last exercise → a **completion card**; **Mark session complete**
-   there.
+4. Swipe past the last exercise → a **completion card** with a **1–10 session
+   difficulty slider** (smiley feedback 😄 → 🥵, success→error accent);
+   **Mark session complete** sends the rating as `p_rating` to
+   `complete_session`. Until the backend accepts that parameter the app retries
+   without it, so completion never fails on an older backend.
 
 Online-only in v1 (clear banner when disconnected).
 
@@ -75,7 +90,12 @@ Clients own their assignment but **cannot write `assignment_*` directly** (those
 tables are staff-write only). So the two write actions in the runner go through
 `SECURITY DEFINER` RPCs that authorise **owns-the-assignment OR staff**:
 
-- **`complete_session(assignment_session)`** — stamps `last_completed_at = now()`.
+- **`complete_session(assignment_session, rating?)`** — stamps
+  `last_completed_at = now()` and, when **`p_rating`** (the 1–10 session
+  difficulty from the finish card) is sent, writes it to
+  `assignment_sessions.last_rating` (migration `20261021120000_session_rating`
+  in Lynx-backend). The app still falls back to the rating-less call, so
+  completion never fails on an older backend.
 - **`swap_assignment_exercise(assignment_exercise, new_exercise)`** — repoints the
   snapshot to a different library exercise, copies the new `name`/`video_url` into
   the snapshot, and records the original in `swapped_from_exercise_id` (kept stable
@@ -109,23 +129,23 @@ logging all pass.
   surfaced: the tab keeps serving the last good REST snapshot, and
   pull-to-refresh / invalidation still update it. It never falls into the
   "You're offline" error state just because realtime is unavailable.
-- **Train tab** (`TrainScreen`) — the program name + session menu; each session
-  card shows its exercise count and a **Completed** badge (from `last_completed_at`);
-  pull-to-refresh; empty/offline states. The loading state uses a Train-tailored
-  skeleton (`SliverTrainSkeleton`) — a program-name header bar plus `AppCard`-shaped
-  session placeholders — so the shape matches the loaded list and doesn't shift on
-  the swap to real data.
+- **Entry point** — the old Train tab was replaced by the
+  [Home tab](/docs/features/home-and-health) (`features/home`), which hosts the
+  next-session card and the session menu and pushes the runner.
 - **Session runner** (`SessionRunnerScreen`) — a per-(exercise, set) `PageView` plus
   a trailing **completion** page, with a synced top exercise selector and a set-dots
-  indicator. Each card has a compact **top row** (small thumbnail · title · target
-  subtitle · method badge · detail affordance) and, below, the exercise's
-  **config-driven metric form** (`MetricFormRenderer` over `metric_schema`; falls
-  back to reps/weight), a **LAST TIME** block (values prefill per set), and a **Log
-  set**/**Save** button. Logging writes the `values` map to `logged_entries.data`
-  plus derived `reps`/`weight`/`time_seconds` for last-time + review. Grouped
+  indicator. Each card has a **method banner** (when not a straight set), a compact
+  **top row** (small thumbnail · title · target subtitle · detail affordance) and,
+  below, the exercise's **config-driven metric form** (`MetricFormRenderer` over
+  `metric_schema`; falls back to reps/weight), a **LAST TIME** block (values
+  prefill per set), an optional **rest row** (`Rest: {n} s` + Start timer → nav-bar
+  countdown), and a **Log set**/**Save** button. Logging writes the `values` map to
+  `logged_entries.data` plus derived `reps`/`weight`/`time_seconds` for last-time +
+  review. Swiping away from a set flushes unsaved input via a per-page save hook
+  (also flushed before completing the session). Grouped
   (superset/MDS/contrast/ramp) exercises render as one block; interval methods
   (EMOM/E2MOM/E3MOM) surface an in-card timer. The **exercise detail sheet**
   (`showExerciseDetailSheet`) adds description · video · a stopwatch timer · global
   per-exercise notes (`exercise_notes`) · a 1–5 difficulty rating
-  (`exercise_feedback`). The **Train** screen also shows the training **description**
-  (snapshotted onto the assignment). Swap re-points the snapshot via the RPC.
+  (`exercise_feedback`). The completion page carries the 1–10 smiley difficulty
+  slider. Swap re-points the snapshot via the RPC.

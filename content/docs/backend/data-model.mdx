@@ -64,6 +64,8 @@ DiceBear avatars are a config on `users_data`, not stored files. See
 - `programs` → `sessions` → `session_exercises` (the template).
 - `assignments` → `assignment_sessions` → `assignment_exercises` (the snapshot);
   `assignment_exercises` are logged against by `logged_entries`.
+  `assignment_sessions` also carries `last_completed_at` and `last_rating`
+  (the client's 1–10 difficulty, written only via the `complete_session` RPC).
 
 ## "Last time"
 
