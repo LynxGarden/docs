@@ -60,14 +60,31 @@ browser one.
 Schema shipped (`20261022120000_crm_events_and_cards.sql`, applied to the hosted
 project). **Board 1 (Leads)** is live end to end: a status-column board, create
 a lead (`users_data` stage=lead + a card), and a ticket-modal **playbook** —
-"Call {name} at {phone}", the lead's goals/best-time/source, a meeting datetime,
+`Call {name} at {phone}`, the lead's goals/best-time/source, a meeting datetime,
 and status-transition buttons. Every write appends to the events log
 (`lead.created` / `lead.status_changed`).
+
+**Board 2 (Razgovor)** is live as a **13-step checklist**. A card arrives when a
+lead is marked **Attended** on Board 1 — `moveLead` promotes the `crm_card` to
+`board 2`, flips the person to `lifecycle_stage = meeting`, and logs
+`razgovor.started`. The playbook groups the steps by stage: **In meeting**
+(T1 consents, T2 questionnaire, T3 offer), the **T4 decision** branch
+(Continue → unlocks sign-up · Decline → reason captured), **Sign-up** (T5–T10:
+program, payment, profile, first session, health, movement), and **Coach solo**
+(T11 invite, T12 program, T13 finish). Stage and progress (`done/14`) are derived
+from `meta.steps` + `meta.decision`; sign-up and coach-solo rows stay locked
+until the decision is YES. Every tick appends an event (`razgovor.step` /
+`.decision` / `.declined`). **T13 — Finish setup** requires T1–T12 done, then:
+moves the card to `board 3`, sets `lifecycle_stage = onboarding`, upserts the
+`client` role, and fires **N1** (`client.onboarding_started`, `notify:
+all_coaches`). The structured questionnaire / movement / health forms (their own
+client-facing documents) and entitlements/payments at T5–T6 are deferred; the
+steps are checklist toggles for now.
 
 **Board 4 (Regular)** is live as a **v1 alarm panel** computed from signals we
 already have: **no active program** → red `system_fix`, and **training absence**
 (≥14 days amber, ≥21 days or never red) → `client_contact`. Coach-filterable
 (*My clients* / *All*), worst-first, healthy clients hidden in the list view and
 counted in a footer. Payment, validity, hold and contract flags are deferred to
-the Payments/entitlements work. Next: the remaining boards' playbooks,
-Linear-style notifications, and the Monday "missing clients" cron.
+the Payments/entitlements work. Next: Boards 3/5/6/7, Linear-style notifications
+(reading the N-events), and the Monday "missing clients" cron.
