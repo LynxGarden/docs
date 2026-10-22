@@ -1,0 +1,44 @@
+---
+title: CRM (web)
+description: The coach/admin CRM — a 7-board client lifecycle pipeline on an append-only event log. Web dashboard only.
+---
+
+The **CRM** is the web dashboard's flagship feature: a Linear-style pipeline
+where one `person` moves across **seven boards** over their whole lifecycle, and
+every change is written to an **append-only event log** so any statistic about
+the past stays answerable. Coach/admin only — clients never see it.
+
+## The seven boards
+
+1. **Leads** — ad → call → intro meeting. Shared pool; a coach claims a card.
+2. **Razgovor** — the 13-step intro-meeting checklist → active client.
+3. **Onboarding** — four milestones over weeks → regular client.
+4. **Regular** — not a pipeline but an **alarm panel**: "who needs me today",
+   one `attention` flag with many causes (payment, expiring, hold, program
+   ended…) and a `system_fix` vs `client_contact` action type.
+5. **Missing** — the Monday homework: clients who didn't train last week, with an
+   escalation ladder.
+6. **End** — lost clients; win-back + goodbye coupon.
+7. **Deactivated** — agreed breaks (not churn; invisible to Board 5).
+
+## Data model (CP-B10)
+
+A **lead is a `users_data` row** with `lifecycle_stage = 'lead'`, so one
+`person_id` follows a human from lead → client → ended → reactivated. The
+pipeline state lives on a separate card.
+
+| Table | Purpose |
+| --- | --- |
+| `crm_cards` | one pipeline card per person — `board` (1–7), `status` (code), `claimed_by` / `assigned_coach_id`, `position`, `due_at`, `attention` / `action_type` (Board 4), `meta` jsonb (lead goals, best time, source…). One active (non-archived) card per person. `set_updated_at`; realtime-published. |
+| `events` | **append-only, immutable** audit/event log (STATS A common envelope: `event_type`, `schema_version`, `occurred_at` + local, `recorded_at`, actor, `person_id`, subject, `payload` jsonb, `source`, `correction_of`). Current state is a view over these; no update/delete — corrections are new rows. |
+
+Both are **staff-only** under RLS (tenant-scoped, `current_is_staff()`), as
+everywhere. The event log is the one thing that **cannot be retrofitted**, so it
+is written from day one even before anything reads it. System/automation events
+(and GDPR anonymisation) go through the service role, which bypasses RLS.
+
+## Status
+
+Schema shipped (`20261022120000_crm_events_and_cards.sql`, applied to the hosted
+project). Next: Board 1 (Leads) and Board 4 (the alarm panel) end to end, then
+the ticket-modal playbook, notifications, and the Monday cron.
