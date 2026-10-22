@@ -37,13 +37,37 @@ everywhere. The event log is the one thing that **cannot be retrofitted**, so it
 is written from day one even before anything reads it. System/automation events
 (and GDPR anonymisation) go through the service role, which bypasses RLS.
 
+## Board views, filtering & sorting
+
+Every board offers two views via a shared toolbar (`BoardToolbar` +
+`useBoardControls`), mirroring Linear:
+
+- **Board** — Kanban columns (statuses for Leads; urgency lanes
+  *Needs action / Keep an eye / Healthy* for Regular). Columns run the **full
+  height of the screen** with their own internal scroll.
+- **List** — a dense, sortable table.
+- **Filter** — a facet popover (multi-select; Leads: status, source — Regular:
+  needs-flag, coach). A badge shows the active-filter count.
+- **Sort** — by any field, ascending/descending (Leads: name, status, meeting —
+  Regular: urgency, days inactive, name).
+
+The app shell is now a fixed-height flex layout (`main` is the scroll container),
+and scrollbars app-wide use a **thin themed thumb** instead of the default
+browser one.
+
 ## Status
 
 Schema shipped (`20261022120000_crm_events_and_cards.sql`, applied to the hosted
-project). **Board 1 (Leads) is live** end to end: a status-column board, create
+project). **Board 1 (Leads)** is live end to end: a status-column board, create
 a lead (`users_data` stage=lead + a card), and a ticket-modal **playbook** —
 "Call {name} at {phone}", the lead's goals/best-time/source, a meeting datetime,
 and status-transition buttons. Every write appends to the events log
-(`lead.created` / `lead.status_changed`), so the CRM is the first producer of
-the event log. Next: Board 4 (the alarm panel), the remaining boards' playbooks,
+(`lead.created` / `lead.status_changed`).
+
+**Board 4 (Regular)** is live as a **v1 alarm panel** computed from signals we
+already have: **no active program** → red `system_fix`, and **training absence**
+(≥14 days amber, ≥21 days or never red) → `client_contact`. Coach-filterable
+(*My clients* / *All*), worst-first, healthy clients hidden in the list view and
+counted in a footer. Payment, validity, hold and contract flags are deferred to
+the Payments/entitlements work. Next: the remaining boards' playbooks,
 Linear-style notifications, and the Monday "missing clients" cron.
