@@ -40,5 +40,10 @@ is written from day one even before anything reads it. System/automation events
 ## Status
 
 Schema shipped (`20261022120000_crm_events_and_cards.sql`, applied to the hosted
-project). Next: Board 1 (Leads) and Board 4 (the alarm panel) end to end, then
-the ticket-modal playbook, notifications, and the Monday cron.
+project). **Board 1 (Leads) is live** end to end: a status-column board, create
+a lead (`users_data` stage=lead + a card), and a ticket-modal **playbook** —
+"Call {name} at {phone}", the lead's goals/best-time/source, a meeting datetime,
+and status-transition buttons. Every write appends to the events log
+(`lead.created` / `lead.status_changed`), so the CRM is the first producer of
+the event log. Next: Board 4 (the alarm panel), the remaining boards' playbooks,
+Linear-style notifications, and the Monday "missing clients" cron.
