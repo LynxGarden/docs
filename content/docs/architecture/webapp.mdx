@@ -81,6 +81,9 @@ sessions management with reorder and `duplicate_phase` / `duplicate_session`),
 and the full **session editor** — a method-first add flow over the 16 training
 methods, the exercise picker, and a prescription editor (strength grid, interval
 for EMOM-family, schema fields for method=none, week tag, coach note) with
-method groups (superset / contrast / …), edit, remove and reorder. Still to
-port: chat, bookings. Later phases add the CRM, Payments, and
-the event log.
+method groups (superset / contrast / …), edit, remove and reorder. **Groups**
+(rosters + group-assign via `assign_template_to_group`), **Review**
+(completed-session feed → logged actuals → likes & comments), and **Chat**
+(realtime 1:1 via `get_or_create_conversation` + a `postgres_changes`
+subscription) are done too. Still to port: bookings. Later phases add the CRM,
+Payments, and the event log.
