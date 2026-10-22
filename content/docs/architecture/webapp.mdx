@@ -65,11 +65,12 @@ types, auth + staff gate, light/dark tokens, EN/SL i18n, the app shell
 (sidebar / mobile drawer, theme + language toggles), and placeholder routes for
 every section.
 
-**Phase 1 (coach port) — in progress.** **Clients** shipped: the tenant client
-list (`users_data` + `person_roles` where role = `client`, with search and the
-account-linked / lifecycle-stage badges), a client detail page, and the
-account-less **New client** flow (person + client role insert) — all over the
-existing backend, no schema changes. Still to port: exercise library, program
-builder + assign, groups, review, chat, bookings, and the client-detail sections
-(care team, health flags, assigned programs, completed sessions). Later phases add
-the CRM, Payments, and the event log.
+**Phase 1 (coach port) — in progress.** **Clients** shipped end to end over the
+existing backend (no schema changes): the tenant client list (`users_data` +
+`person_roles` where role = `client`, with search and account/lifecycle badges),
+the account-less **New client** flow, and the full **client detail hub** — care
+team (`list_client_staff` RPC + `client_staff` assign/unassign), health flags
+(add/delete), assigned programs (list + `assign_template` + `resync_assignment`
+RPCs), completed sessions, and the invite-code flow. Still to port: exercise
+library, program builder, groups, review, chat, bookings. Later phases add the
+CRM, Payments, and the event log.
