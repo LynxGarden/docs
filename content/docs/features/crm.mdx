@@ -81,10 +81,37 @@ all_coaches`). The structured questionnaire / movement / health forms (their own
 client-facing documents) and entitlements/payments at T5–T6 are deferred; the
 steps are checklist toggles for now.
 
+**Board 3 (Onboarding)** is live as **four milestones** (M1 first session → M2
+second → M3 in the group → M4 check-in), 16 sub-steps on the same meta-driven
+checklist. Milestones unlock in order. The **session counter** (M3.3) is an
+*auto* step satisfied by data — completed `assignment_sessions` for the person,
+target **6 total from M1**. Ticking **M2.2** fires **N2**
+(`client.group_transfer`, all coaches); **M3.1** fires **N3**
+(`client.floor_coach_alert` — the floor coach is a *shift*, so routing waits on a
+staff roster; the event is logged now). **Complete** (all four done) moves the
+card to Board 4 and sets `lifecycle_stage = regular`
+(`client.onboarding_complete`). A **drop-out** captures a reason and archives the
+card. The M4 interview form, contract/payment entitlements and the floor-coach
+roster are deferred.
+
 **Board 4 (Regular)** is live as a **v1 alarm panel** computed from signals we
 already have: **no active program** → red `system_fix`, and **training absence**
 (≥14 days amber, ≥21 days or never red) → `client_contact`. Coach-filterable
 (*My clients* / *All*), worst-first, healthy clients hidden in the list view and
 counted in a footer. Payment, validity, hold and contract flags are deferred to
-the Payments/entitlements work. Next: Boards 3/5/6/7, Linear-style notifications
-(reading the N-events), and the Monday "missing clients" cron.
+the Payments/entitlements work.
+
+## Interaction
+
+- **Drag-and-drop** (Leads): drag a card between status columns (board) or
+  status groups (list) to change its status — writes `lead.status_changed`;
+  dropping on *Attended* promotes to the Interview board. The checklist boards
+  advance by completing steps, not dragging (their lanes are derived).
+- **Full-bleed boards**: CRM routes use the full content width (narrower
+  columns) so more statuses show at once; other pages stay centered.
+- **Ticket dialogs** keep a pinned header — title + close X stay visible while
+  the checklist body scrolls (`CrmDialog`). The Leads "Razgovor" board is
+  labelled **Interview** in English, Razgovor in Slovene.
+
+Next: Boards 5 (Missing / Monday cron), 6 (End), 7 (Deactivated); a Linear-style
+notifications centre (reading the N-events); and the Monday "missing clients" cron.
