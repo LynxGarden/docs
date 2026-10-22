@@ -65,7 +65,7 @@ types, auth + staff gate, light/dark tokens, EN/SL i18n, the app shell
 (sidebar / mobile drawer, theme + language toggles), and placeholder routes for
 every section.
 
-**Phase 1 (coach port) — in progress.** **Clients** shipped end to end over the
+**Phase 1 (coach port) — complete.** **Clients** shipped end to end over the
 existing backend (no schema changes): the tenant client list (`users_data` +
 `person_roles` where role = `client`, with search and account/lifecycle badges),
 the account-less **New client** flow, and the full **client detail hub** — care
@@ -85,5 +85,11 @@ method groups (superset / contrast / …), edit, remove and reorder. **Groups**
 (rosters + group-assign via `assign_template_to_group`), **Review**
 (completed-session feed → logged actuals → likes & comments), and **Chat**
 (realtime 1:1 via `get_or_create_conversation` + a `postgres_changes`
-subscription) are done too. Still to port: bookings. Later phases add the CRM,
-Payments, and the event log.
+subscription) are done too, and a read-only **Bookings** schedule (this week's
+booked slots over the `bookings` table) rounds out the coach shell. That
+completes the coach-app port — the whole Flutter staff surface now runs on the
+web.
+
+**Next — Phase 2+ (greenfield):** the append-only **event log**, the **CRM**
+boards, **Payments** (Pantheon), and admin/stats. These add new backend
+migrations in `Lynx-backend`, not just UI.
