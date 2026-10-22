@@ -75,11 +75,12 @@ RPCs), completed sessions, and the invite-code flow. **Exercise library** shippe
 too: the owner's exercises with public thumbnails, movement/tag filters and
 search, plus a full create/edit editor (thumbnail upload, movements, video link,
 description, tag create via `ensure_tag`, and the config-driven metric-schema
-editor). The **program builder** is underway: the template list (create /
-duplicate via `duplicate_program` / delete) and the program editor —
-name/description plus phases → sessions management (add / rename / delete /
-reorder, duplicate via `duplicate_phase` / `duplicate_session`), with a
-read-only session view that renders ported prescription summaries. Still to
-port: the session editor's exercise picker + prescription + 16 training methods
-(pass 2), groups, review, chat, bookings. Later phases add the CRM, Payments,
-and the event log.
+editor). The **program builder** is complete: the template list (create / duplicate via
+`duplicate_program` / delete), the program editor (name/description + phases →
+sessions management with reorder and `duplicate_phase` / `duplicate_session`),
+and the full **session editor** — a method-first add flow over the 16 training
+methods, the exercise picker, and a prescription editor (strength grid, interval
+for EMOM-family, schema fields for method=none, week tag, coach note) with
+method groups (superset / contrast / …), edit, remove and reorder. Still to
+port: groups, review, chat, bookings. Later phases add the CRM, Payments, and
+the event log.
